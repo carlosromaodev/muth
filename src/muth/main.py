@@ -14,12 +14,19 @@ from starlette.staticfiles import StaticFiles
 from muth.api import router
 from muth.capacity import InferenceCapacity
 from muth.capture_api import router as capture_router
+from muth.capture_learning import CaptureLearningService
+from muth.capture_review_api import router as capture_review_router
 from muth.capture_security import CaptureAccess, CaptureRateLimiter
 from muth.capture_storage import CaptureStore
 from muth.config import Settings
 from muth.engines.biometric import BiometricRuntime
 from muth.engines.bundle import EngineBundle
 from muth.errors import MuthError
+from muth.identity_api import operator_router as identity_operator_router
+from muth.identity_api import router as identity_router
+from muth.identity_security import IdentityAccess
+from muth.identity_service import IdentityService
+from muth.identity_store import IdentityStore
 from muth.learning import LearningService, refinement_loop
 from muth.middleware import (
     WEB_SECURITY_HEADERS,
@@ -28,8 +35,29 @@ from muth.middleware import (
     RateLimiter,
     error_response,
 )
+from muth.ocr import TesseractDocumentEngine
 from muth.services.verify import VerifyService
 from muth.storage import Database, SessionStore
+
+
+async def _background_call(operation, *args):
+    """Finish database workers before cancellation can close their connections."""
+    worker = asyncio.create_task(run_in_threadpool(operation, *args))
+    try:
+        return await asyncio.shield(worker)
+    except asyncio.CancelledError:
+        # Cancelling an asyncio task does not stop its synchronous worker. Keep
+        # waiting even if shutdown is cancelled again, then propagate the stop.
+        while not worker.done():
+            try:
+                await asyncio.shield(worker)
+            except asyncio.CancelledError:
+                continue
+            except Exception:
+                break
+        with suppress(Exception):
+            worker.result()
+        raise
 
 
 def create_app(settings: Settings | None = None, engines: EngineBundle | None = None) -> FastAPI:
@@ -46,9 +74,16 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
         tenants = {key.tenant_id for key in settings.tenants}
         if settings.api_key.get_secret_value():
             tenants.add("local")
+        if settings.capture_learning_enabled:
+            tenants.add(settings.capture_tenant_id)
         task = (
             asyncio.create_task(
-                refinement_loop(app.state.learning, settings.learning_interval_seconds, tenants)
+                refinement_loop(
+                    app.state.learning,
+                    settings.learning_interval_seconds,
+                    tenants,
+                    dispatch=_background_call,
+                )
             )
             if runtime and settings.learning_enabled
             else None
@@ -57,8 +92,10 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
         async def capture_retention_loop():
             while True:
                 try:
-                    if await run_in_threadpool(database.ready):
-                        await run_in_threadpool(app.state.capture_store.purge)
+                    if await _background_call(database.ready):
+                        await _background_call(app.state.capture_store.purge)
+                        await _background_call(app.state.capture_learning.purge)
+                        await _background_call(app.state.identities.purge)
                 except Exception as exc:
                     logging.getLogger("muth.capture").warning(
                         "capture_purge_failed exception_type=%s", type(exc).__name__
@@ -69,18 +106,17 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
         try:
             yield
         finally:
-            retention_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await retention_task
-            if task:
-                task.cancel()
+            background_tasks = [retention_task, *([task] if task else [])]
+            for background in background_tasks:
+                background.cancel()
+            for background in background_tasks:
                 with suppress(asyncio.CancelledError):
-                    await task
+                    await background
             database.engine.dispose()
 
     app = FastAPI(
         title="MUTH API",
-        version="0.5.0",
+        version="0.6.0",
         lifespan=lifespan,
         description=(
             "Infraestrutura africana de identidade digital. Sessões B2B com consentimento, "
@@ -91,10 +127,22 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
     app.state.database = database
     app.state.store = SessionStore(database, settings)
     app.state.capture_access = CaptureAccess(app.state.store)
-    app.state.capture_store = CaptureStore(app.state.store)
     app.state.capture_limiter = CaptureRateLimiter(settings, app.state.store.fingerprint_key)
     app.state.runtime = runtime
     app.state.learning = LearningService(app.state.store, runtime)
+    app.state.capture_learning = CaptureLearningService(app.state.store, app.state.learning)
+    app.state.identities = IdentityStore(app.state.store)
+    app.state.identity_service = IdentityService()
+    app.state.identity_access = IdentityAccess(app.state.store)
+    app.state.capture_store = CaptureStore(
+        app.state.store, app.state.capture_learning, app.state.identities
+    )
+    app.state.document_ocr = TesseractDocumentEngine(
+        enabled=settings.document_ocr_enabled,
+        executable=settings.document_ocr_executable,
+        languages=settings.document_ocr_languages,
+        timeout_seconds=settings.document_ocr_timeout_seconds,
+    )
     app.state.engines = engines or (runtime.bundle() if runtime else EngineBundle.demo())
     app.state.verify_service = VerifyService(
         app.state.engines.face,
@@ -113,6 +161,9 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
     )
     app.include_router(router)
     app.include_router(capture_router)
+    app.include_router(capture_review_router)
+    app.include_router(identity_router)
+    app.include_router(identity_operator_router)
     web = Path(__file__).parent / "web"
     app.mount("/assets", StaticFiles(directory=web, check_dir=False), name="capture-assets")
 
@@ -158,7 +209,7 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
 
     @app.get("/health", tags=["Sistema"])
     def health() -> dict[str, str]:
-        return {"status": "ok", "service": "muth", "version": "0.5.0"}
+        return {"status": "ok", "service": "muth", "version": "0.6.0"}
 
     @app.get("/health/ready", tags=["Sistema"])
     def ready() -> JSONResponse:
@@ -175,6 +226,8 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
                 "database_ready": db_ready,
                 "identity_verification_ready": False,
                 "biometric_inference_ready": runtime is not None and db_ready,
+                "document_ocr_ready": bool(app.state.document_ocr.executable),
+                "document_ocr_languages": app.state.document_ocr.languages or None,
                 "permitted_use": runtime.manifest.permitted_use if runtime else None,
             },
         )

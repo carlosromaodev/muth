@@ -35,7 +35,7 @@ def authenticate(
             matched = Principal(key.tenant_id, key.key_id, frozenset(key.scopes))
     legacy = settings.api_key.get_secret_value()
     if legacy and secrets.compare_digest(supplied, hashlib.sha256(legacy.encode()).hexdigest()):
-        matched = Principal("local", "legacy-local", frozenset(SCOPES))
+        matched = Principal("local", "legacy-local", frozenset(SCOPES - {"capture_review"}))
     if matched is None:
         raise MuthError(401, "invalid_api_key", "API key inválida ou ausente.")
     request.app.state.limiter.check(matched.key_id)

@@ -6,11 +6,13 @@ from uuid import uuid4
 from fastapi import Request
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
 from starlette._utils import get_route_path
+from starlette.concurrency import run_in_threadpool
 from starlette.responses import JSONResponse
 
 from muth.capacity import InferenceCapacity
 from muth.capture_security import authorize_capture
 from muth.errors import MuthError
+from muth.identity_security import authorize_identity
 from muth.security import authenticate, require_scope
 
 WEB_SECURITY_HEADERS = {
@@ -87,6 +89,10 @@ def error_response(status, code, message, request_id):
 def operation_scope(path: str, method: str) -> str:
     if path == "/metrics":
         return "metrics"
+    if path == "/v1/capture-learning" or path.startswith("/v1/capture-learning/"):
+        return "capture_review"
+    if path.startswith("/v1/capture-identities/") or path == "/v1/auth/authenticate":
+        return "capture_review"
     if path.startswith("/v1/learning"):
         return "learning"
     if path.endswith("/feedback"):
@@ -106,9 +112,13 @@ def is_inference_request(path, method):
     if method != "POST":
         return False
     path = path.rstrip("/")
+    if path == "/v1/auth/authenticate":
+        return True
     if path in {"/v1/verifications", "/v1/faces/compare", "/v1/liveness", "/v1/documents/analyze"}:
         return True
     parts = path.split("/")
+    if len(parts) == 5 and parts[:3] == ["", "identity-api", "identities"]:
+        return bool(parts[3]) and parts[4] == "compare"
     if len(parts) == 5 and parts[:3] == ["", "capture-api", "sessions"]:
         return bool(parts[3]) and parts[4] == "verify"
     return (
@@ -170,6 +180,8 @@ class PlatformMiddleware:
                 require_scope(principal, operation_scope(path, scope["method"]))
             if path == "/capture-api" or path.startswith("/capture-api/"):
                 await authorize_capture(request)
+            if path == "/identity-api" or path.startswith("/identity-api/"):
+                await authorize_identity(request)
             inference = is_inference_request(path, scope["method"])
             if inference:
                 admitted = self.capacity.acquire_request()
@@ -228,8 +240,22 @@ class PlatformMiddleware:
             if declared is not None and declared != len(body):
                 raise MuthError(400, "body_length_mismatch", "Comprimento do corpo inválido.")
             if inference and path.startswith("/capture-api/"):
-                request.app.state.capture_access.authenticate(
+                principal = request.app.state.capture_access.authenticate(
                     request.headers.get("authorization"), path.split("/")[3]
+                )
+                session = await run_in_threadpool(
+                    request.app.state.store.get, principal, path.split("/")[3]
+                )
+                if session.expires_at.timestamp() <= request.app.state.store.clock():
+                    raise MuthError(
+                        410, "session_expired", "O prazo da captura terminou. Recomece."
+                    )
+            if inference and path.startswith("/identity-api/"):
+                principal = request.app.state.identity_access.authenticate(
+                    request.headers.get("authorization"), path.split("/")[3]
+                )
+                await run_in_threadpool(
+                    request.app.state.identities.get, principal, path.split("/")[3]
                 )
             consumed = False
 

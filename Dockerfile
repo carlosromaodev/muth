@@ -9,6 +9,11 @@ RUN --mount=type=secret,id=proxy_ca \
     uv sync --locked --no-dev --no-editable --extra biometrics
 
 FROM python:3.12-slim
+RUN --mount=type=secret,id=proxy_ca \
+    apt-get -o Acquire::https::CaInfo=/run/secrets/proxy_ca update \
+    && apt-get -o Acquire::https::CaInfo=/run/secrets/proxy_ca install -y --no-install-recommends \
+       tesseract-ocr tesseract-ocr-por tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
 RUN groupadd --gid 10001 muth && useradd --uid 10001 --gid 10001 --create-home muth
 WORKDIR /app
 COPY --from=build /app/.venv /app/.venv

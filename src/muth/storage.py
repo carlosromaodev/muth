@@ -42,7 +42,7 @@ from muth.errors import MuthError
 from muth.media import ImageInput
 from muth.security import Principal
 
-SCHEMA_VERSION = "0003_capture"
+SCHEMA_VERSION = "0005_identities"
 
 
 class Base(DeclarativeBase):
@@ -61,6 +61,7 @@ class SessionRow(Base):
     payload: Mapped[str | None] = mapped_column(Text)
     result: Mapped[str | None] = mapped_column(Text)
     capture_result: Mapped[str | None] = mapped_column(Text)
+    enrollment_consent: Mapped[str | None] = mapped_column(Text)
     idempotency_hash: Mapped[str | None] = mapped_column(String(64))
     fingerprint: Mapped[str | None] = mapped_column(String(64))
     attempt: Mapped[str | None] = mapped_column(String(32))
@@ -130,6 +131,12 @@ class CalibrationMemberRow(Base):
 
 class Database:
     def __init__(self, settings: Settings):
+        # Register the contribution table for CLI migrations and in-memory stores.
+        from muth import (
+            capture_learning,  # noqa: F401
+            identity_store,  # noqa: F401
+        )
+
         options = {"connect_args": {"check_same_thread": False, "timeout": 15}}
         if settings.in_memory:
             options["poolclass"] = StaticPool
@@ -397,6 +404,7 @@ class SessionStore:
             payload=None,
             result=None,
             capture_result=None,
+            enrollment_consent=None,
             idempotency_hash=None,
             fingerprint=None,
             attempt=None,
@@ -413,9 +421,14 @@ class SessionStore:
             ).rowcount
             if changed != 1:
                 raise MuthError(404, "session_not_found", "Sessão não encontrada.")
+            from muth.capture_learning import erase_capture_candidates
             from muth.learning import erase_samples
 
             erase_samples(db, [session_id])
+            erase_capture_candidates(db, [session_id])
+            from muth.identity_store import erase_session_identities
+
+            erase_session_identities(db, [session_id])
             self._event(db, principal, session_id, "session_deleted", request_id)
 
     def events(self, principal, session_id, limit=100) -> list[AuditEvent]:
@@ -466,9 +479,11 @@ class SessionStore:
                 ).rowcount
                 if changed != 1:
                     continue
+                from muth.capture_learning import erase_capture_candidates
                 from muth.learning import erase_samples
 
                 erase_samples(db, [row.session_id])
+                erase_capture_candidates(db, [row.session_id])
                 count += 1
                 actor = Principal(row.tenant_id, "retention-job", frozenset())
                 self._event(db, actor, row.session_id, "retention_purged", uuid4().hex)

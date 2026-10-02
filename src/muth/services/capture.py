@@ -9,6 +9,7 @@ from PIL import Image, ImageFilter, ImageOps, ImageStat
 from muth.capture_models import CaptureChecks, CaptureScore, CaptureVerification
 from muth.domain import Check, DocumentCheck, Outcome, VerificationStatus
 from muth.media import ImageInput
+from muth.ocr import TesseractDocumentEngine
 from muth.services.verify import VerifyService
 
 SCORING_VERSION = "capture-indicative-v1"
@@ -177,8 +178,9 @@ def indicative_score(
 class CaptureService:
     """Uses existing configured engines; does not retain images, embeddings or quality digests."""
 
-    def __init__(self, verify_service: VerifyService):
+    def __init__(self, verify_service: VerifyService, document_engine=None):
         self.verify_service = verify_service
+        self.document_engine = document_engine or TesseractDocumentEngine(enabled=False)
 
     def verify(
         self, document_front: ImageInput, document_back: ImageInput, selfie: ImageInput
@@ -223,4 +225,5 @@ class CaptureService:
                 *back_document.reasons,
                 "capture_rating_is_indicative",
             ],
+            document_data=self.document_engine.extract(document_front, document_back),
         )

@@ -3,7 +3,17 @@ from typing import Literal
 from pydantic import BaseModel, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-SCOPES = {"verify", "read", "review", "delete", "audit", "metrics", "feedback", "learning"}
+SCOPES = {
+    "verify",
+    "read",
+    "review",
+    "delete",
+    "audit",
+    "metrics",
+    "feedback",
+    "learning",
+    "capture_review",
+}
 
 
 class TenantKey(BaseModel):
@@ -49,11 +59,28 @@ class Settings(BaseSettings):
     capture_max_request_bytes: int = Field(default=16 * 1024 * 1024, gt=0, le=32 * 1024 * 1024)
     capture_rate_limit_per_minute: int = Field(default=120, ge=1, le=1000)
     capture_creation_limit_per_minute: int = Field(default=10, ge=1, le=100)
-    capture_max_sessions: int = Field(default=1000, ge=1, le=100_000)
+    capture_max_sessions: int = Field(default=10_000, ge=1, le=100_000)
     capture_retention_days: int = Field(default=1, ge=1, le=7)
+    capture_learning_enabled: bool = True
+    capture_learning_policy_version: str = Field(
+        default="capture-learning-v1", pattern=r"^[a-zA-Z0-9_.-]{1,80}$"
+    )
+    capture_learning_retention_days: int = Field(default=30, ge=1, le=365)
+    document_ocr_enabled: bool = True
+    document_ocr_executable: str = "tesseract"
+    document_ocr_languages: str = Field(default="por+eng", pattern=r"^[a-zA-Z_+]{1,80}$")
+    document_ocr_timeout_seconds: float = Field(default=12, ge=0.1, le=60)
+    identity_enrollment_enabled: bool = True
+    identity_enrollment_policy_version: str = Field(
+        default="identity-enrollment-v1", pattern=r"^[a-zA-Z0-9_.-]{1,80}$"
+    )
+    identity_retention_days: int = Field(default=365, ge=1, le=730)
+    identity_max_profiles: int = Field(default=10_000, ge=1, le=1_000_000)
 
     @model_validator(mode="after")
     def validate_config(self):
+        if self.capture_learning_retention_days < self.capture_retention_days:
+            raise ValueError("A retenção de aprendizagem não pode ser menor que a de captura.")
         if not self.database_url.startswith("sqlite:"):
             raise ValueError("Esta versão suporta SQLite; PostgreSQL exige validação específica.")
         from sqlalchemy.engine import make_url

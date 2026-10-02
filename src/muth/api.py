@@ -305,10 +305,5 @@ async def analyze(request: Request, document: ImageFile) -> DocumentCheck:
     return analysis.check
 
 
-@router.post("/auth/authenticate", tags=["MUTH Auth"], status_code=501)
-async def authenticate_identity() -> None:
-    raise MuthError(501, "auth_not_implemented", "MUTH Auth ainda não implementado.")
-
-
 router.include_router(sessions)
 router.include_router(engines)

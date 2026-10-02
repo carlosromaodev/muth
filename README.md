@@ -1,12 +1,15 @@
 # MUTH
 
 Infraestrutura africana de identidade digital, com foco inicial no BI angolano.
-Versão v0.5 em Python 3.12/FastAPI, seguindo o [SDD](docs/SDD.md) e o
-[SDD biométrico](docs/biometrics-SDD.md).
+Versão v0.6 em Python 3.12/FastAPI, seguindo o [SDD](docs/SDD.md), o
+[SDD biométrico](docs/biometrics-SDD.md) e o [SDD de aprendizagem web](docs/web-learning-SDD.md).
 
 **Face e Liveness executam modelos reais em CPU.** YuNet/SFace e MiniFASNet ONNX
-estão integrados; thresholds não calibrados devolvem inconclusivo. OCR/autenticidade
-documental não estão implementados. A calibração automática usa apenas scores
+estão integrados; thresholds não calibrados devolvem inconclusivo. Tesseract local
+extrai campos do documento e valida a estrutura de MRZ. Autenticidade documental
+continua por confirmar. Com autorização independente, o serviço guarda um template
+facial cifrado junto dos dados da credencial para comparação posterior 1:1.
+A calibração automática usa apenas scores
 autorizados e labels humanos confirmados, sem alterar pesos neurais. Não existe
 dataset angolano avaliado nem prontidão comercial comprovada.
 
@@ -14,6 +17,7 @@ dataset angolano avaliado nem prontidão comercial comprovada.
 
 ```bash
 cd /home/carlos/Documentos/project/muth
+sudo apt-get install tesseract-ocr tesseract-ocr-por tesseract-ocr-eng
 UV_CACHE_DIR=/tmp/muth-uv-cache uv sync --locked --extra biometrics
 .venv/bin/muth init
 .venv/bin/muth migrate
@@ -23,25 +27,59 @@ UV_CACHE_DIR=/tmp/muth-uv-cache uv sync --locked --extra biometrics
 `muth init` cria `.env` com chaves aleatórias e permissões 0600. Não sobrescreve
 configuração existente e não imprime segredos. O processo lê `.env` automaticamente.
 Documentação interativa: <http://127.0.0.1:8000/docs>.
+O Dockerfile inclui Tesseract e os idiomas português/inglês. No host,
+`tesseract --list-langs` deve apresentar `por` e `eng`. OCR ausente ou leitura
+insuficiente devolve dados indisponíveis/parciais; campos não são inventados.
 
 ## Captura mobile e web
 
 Abrir <http://127.0.0.1:8000> para consentimento, frente/verso do documento,
 selfie, revisão e resultado. Câmara e fotografias são escolhidas pelo utilizador;
 nenhuma chave B2B vai para o browser. O mesmo servidor fornece interface e API.
-Aplicar `muth migrate` para a migração `0003_capture` antes de iniciar a v0.5.
+Aplicar `muth migrate` até `0005_identities` antes de iniciar a v0.6.
 
 A nota 0–10 mede sinais disponíveis, com **teto actual de 6/10** e autenticidade
 por confirmar. Demo/falta de evidência mostra nota indisponível. Não confirma
-oficialmente documentos nem garante uma pessoa real. A captura do verso analisa
-legibilidade; OCR/autenticidade continuam por implementar.
+oficialmente documentos nem garante uma pessoa real. O resultado mostra nome,
+número documental, datas, sexo, nacionalidade e filiação quando legíveis, com
+origem/confiança por campo e conflitos entre frente/verso. OCR e dígitos MRZ
+consistentes não comprovam emissão oficial nem autenticidade.
+`document_data.processing_version` identifica `muth-document-ocr-v2`: OCR começa
+em PSM 6 e tenta PSM 11 quando faltam campos essenciais ou há leitura inválida,
+conservando conflitos em vez de escolher silenciosamente valores plausíveis.
 
 No telemóvel, a câmara JavaScript precisa de HTTPS; localhost funciona no próprio
 dispositivo. [Portal, segurança e configuração HTTPS](docs/capture-SDD.md).
 `MUTH_CAPTURE_PORTAL_ENABLED=false` desactiva os endpoints públicos de captura.
-Resultados do portal têm retenção de um dia, limpeza periódica e eliminação por
-sessão; imagens/tokens não são guardados no browser e imagens não são persistidas
-pelo serviço. O fluxo público não participa na aprendizagem.
+Resultados do portal têm retenção de um dia; contribuições voluntárias conservam
+resultado e fila por 30 dias por defeito. Imagens/tokens não são guardados no
+browser e imagens não são persistidas pelo serviço. Dois consentimentos opcionais,
+inicialmente desmarcados, autorizam contribuir para aprendizagem e guardar a
+identidade. A verificação funciona sem ambos. [Contratos e retenção](docs/web-learning-SDD.md).
+
+## Identidade guardada e aprendizagem pela web
+
+Guardar a identidade cria um **registo provisório**: embedding SFace de 128
+valores normalizados, fingerprint do modelo, consentimento e campos documentais,
+cifrados com Fernet. Não é um algoritmo individual treinado nem prova oficial da
+identidade. Imagens e vectores não saem na resposta HTTP. A retenção independente
+do perfil é 365 dias por defeito; eliminação explícita da captura original também
+elimina o perfil. A comparação posterior recebe uma selfie e devolve Face/PAD,
+mantendo `authenticated=false` enquanto faltarem calibração e autenticação documental.
+`MUTH_IDENTITY_MAX_PROFILES=10000` limita perfis activos por tenant; inscrições
+novas acima da quota recebem 429. A quota é independente das sessões de captura.
+
+Contribuir cria uma fila cifrada; o utilizador pode propor correcções OCR e retirar
+o consentimento. Apenas um operador com scope explícito `capture_review` pode
+confirmar labels e referências pseudónimas com evidência independente. Capturas
+pendentes não entram no treino. O refinamento calibra limiares após os gates de
+avaliação; não actualiza pesos neurais nem garante melhoria em cada verificação.
+`muth init` e a chave legacy não atribuem este scope administrativo.
+
+O resultado oferece eliminação do perfil e retirada da contribuição. Reiniciar
+para uma nova verificação conserva os registos já autorizados até aos respectivos
+prazos. Tokens ficam apenas em memória; sem o token, o operador autorizado pode
+gerir um registo pelo ID, sem expor credenciais B2B no browser.
 
 ## Activar os motores biométricos
 
@@ -114,7 +152,10 @@ consentimento recebida e o resultado; não prova que a captura veio de uma câma
 
 - Sessões persistentes, consentimento versionado, TTL e idempotência.
 - Isolamento entre empresas, chaves por hash e scopes.
-- Resultados e dados de sessão cifrados com Fernet; nenhuma imagem ou embedding persistido.
+- Resultados e dados de sessão cifrados com Fernet; nenhuma imagem persistida.
+- OCR local de frente/verso, campos estruturados, conflitos e checks MRZ.
+- Templates faciais cifrados apenas com opt-in independente; comparação posterior 1:1.
+- Fila de contribuições web, propostas OCR, revisão administrativa e retirada de consentimento.
 - Claims atómicos com lease, recuperação e bloqueio de resultados obsoletos.
 - Rejeição manual, eliminação, purge e auditoria mínima.
 - Bundle único para Face/Liveness/ID, sem provider fixo nas rotas.
@@ -171,11 +212,18 @@ dependentes, conservando a verificação. [Critérios completos](docs/biometrics
 | `GET /v1/learning`, `POST /v1/learning/refine`, `/v1/learning/{role}/rollback` | `learning` |
 | `POST /v1/faces/compare`, `/v1/liveness`, `/v1/documents/analyze` | `verify` |
 | `POST /v1/verifications` (efémero, compatibilidade) | `verify` |
-| `POST /v1/auth/authenticate` (reservado, 501) | `verify` |
+| `GET /v1/capture-learning`, `/status`, `POST /refine` e `/{id}/review` | `capture_review` |
+| `GET/DELETE /v1/capture-identities/{id}` | `capture_review` |
+| `POST /v1/auth/authenticate?identity_id=...` (comparação provisória) | `capture_review` |
 | `GET /metrics` | `metrics` |
 
 `GET /health` e `/health/ready` são públicos. Readiness verifica o schema e
 declara explicitamente `identity_verification_ready=false`.
+
+O navegador usa `Bearer` limitado à captura em `/capture-api/sessions/{id}` e
+um token separado limitado ao perfil em `/identity-api/identities/{id}`.
+Este último permite consultar/eliminar o perfil e enviar apenas `selfie` a
+`POST /identity-api/identities/{id}/compare`; não autoriza revisão nem outros perfis.
 
 ## Validar
 
@@ -221,6 +269,8 @@ e limites do proxy através de medições no hardware de destino.
 ## Documentação
 
 - [SDD e critérios de aceitação](docs/SDD.md)
+- [Portal de captura](docs/capture-SDD.md)
+- [OCR, identidade guardada e aprendizagem web](docs/web-learning-SDD.md)
 - [Análise de mercado](docs/market-analysis.md)
 - [Repositórios e licenças](docs/repository-assessment.md)
 - [Fontes e SHAs consultados](docs/research/sources.json)

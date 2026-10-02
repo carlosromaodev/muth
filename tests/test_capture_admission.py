@@ -122,7 +122,7 @@ class CaptureUploadDeadlineTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(cancelled.is_set())
         self.assert_capacity_released()
 
-    async def test_token_expiring_during_upload_is_rejected_before_multipart_parsing(self):
+    async def test_capture_expiring_during_upload_is_rejected_before_multipart_parsing(self):
         session = await self.create_session()
 
         async def receive():
@@ -133,6 +133,20 @@ class CaptureUploadDeadlineTests(unittest.IsolatedAsyncioTestCase):
                 "body": b"--capture-test--\r\n",
                 "more_body": False,
             }
+
+        with patch("muth.capture_api.Request.form") as parser:
+            status, response = await self.response(self.verify_scope(session), receive)
+        self.assertEqual(status, 410)
+        self.assertEqual(response["error"]["code"], "session_expired")
+        parser.assert_not_called()
+        self.assert_capacity_released()
+
+    async def test_capability_expiring_during_upload_is_rejected_before_multipart_parsing(self):
+        session = await self.create_session()
+
+        async def receive():
+            self.now += self.settings.capture_retention_days * 86400 + 1
+            return {"type": "http.request", "body": b"--capture-test--\r\n", "more_body": False}
 
         with patch("muth.capture_api.Request.form") as parser:
             status, response = await self.response(self.verify_scope(session), receive)

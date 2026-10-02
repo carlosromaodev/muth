@@ -1,15 +1,21 @@
 # MUTH — System Design Document
 
-Versão 1.3 · 2 de Outubro de 2026 · Plataforma/biometria e portal de captura v0.5.
+Versão 1.4 · 2 de Outubro de 2026 · Plataforma/biometria, OCR e aprendizagem web v0.6.
 
 O desenho biométrico vigente está em [biometrics-SDD.md](biometrics-SDD.md).
-Esta extensão substitui as referências abaixo a motores ainda demo: v0.4 integra
-Face/Liveness reais e calibração supervisionada. OCR/Auth permanecem pendentes;
-não existe precisão local ou prontidão comercial comprovada.
+As extensões substituem as referências históricas abaixo a motores ainda demo:
+Face/Liveness reais, OCR Tesseract local e calibração supervisionada estão
+integrados. Registos faciais autorizados permitem comparação posterior 1:1,
+mantendo identidade provisória e `authenticated=false`. Autenticidade documental,
+protocolo de login e precisão local/prontidão comercial continuam por demonstrar.
 O [refinamento do backend](backend-refinement.md) define os requisitos adicionais
 de admissão, cancelamento, transacções, integridade e avaliação por imagem.
 O [SDD de captura](capture-SDD.md) acrescenta interface mobile/web, frente/verso,
 selfie, capabilities do browser e uma nota preliminar explicitamente limitada.
+O [SDD de aprendizagem web](web-learning-SDD.md) define OCR, consentimentos
+independentes, fila de revisão, templates cifrados e reutilização provisória.
+É normativo para os contratos v0.6; o diagnóstico e plano P0 abaixo conservam o
+histórico da fundação, sem declarar os gates comerciais cumpridos.
 
 ## 1. Objectivo e limites
 
@@ -77,10 +83,11 @@ flowchart LR
     A --> O[Request IDs · métricas]
 ```
 
-As chaves B2B nunca entram no browser do utilizador. P0 recebe uploads do backend
-da empresa; SDK de captura, tokens de sessão de uso limitado, atestação e sinais de
-dispositivo pertencem a P2. Um ficheiro enviado não prova presença fresca nem
-vinculação criptográfica à câmara.
+As chaves B2B nunca entram no browser do utilizador. A captura web usa capabilities
+limitadas à sessão; guardar um perfil exige consentimento e capability próprios.
+OCR corre localmente, sem enviar documentos para terceiros. Atestação e sinais
+avançados do dispositivo continuam em P2. Um ficheiro enviado não prova presença
+fresca nem vinculação criptográfica à câmara.
 
 ### Separação de responsabilidades
 
@@ -103,11 +110,32 @@ timestamp, request ID. Não contém nomes, números de BI, ficheiros ou scores.
 É append-only pela API; um administrador da base de dados pode alterá-lo.
 Não anunciar auditoria imutável. Ancoragem externa e export assinado são P2.
 
+**CaptureLearningCandidate:** ID/sessão/tenant, estado, retenção e payload cifrado
+com scores/fingerprints, extracção/propostas OCR e revisão. Sem imagens ou vectores.
+O estado pending_review não gera LearningSample. Operador `capture_review` declara
+labels independentes e referências pseudónimas estáveis; o frontend não os escolhe.
+
+**IdentityProfile:** ID aleatório, tenant, sessão de origem, retenção e estado
+provisório; payload cifrado com embedding normalizado de 128 valores, fingerprint
+do modelo, dados documentais e consentimento específico. Respostas públicas nunca
+incluem vectores; comparação usa o mesmo fingerprint e recebe uma nova selfie.
+Por defeito, perfil retido 365 dias, independentemente do prazo normal da sessão.
+`identity_max_profiles` (`MUTH_IDENTITY_MAX_PROFILES`) limita a 10 000 perfis
+activos por tenant; quota e inscrição são verificadas na mesma transacção.
+Delete explícito da sessão apaga perfis derivados; expiração normal só limpa a sessão.
+
+**DocumentData:** campos extraídos, origem/confiança, conflitos, checks MRZ e
+`processing_version=muth-document-ocr-v2`. PSM 6 é a primeira leitura; PSM 11
+é uma segunda leitura adaptativa perante campos insuficientes/invalidade,
+conservando incerteza quando duas leituras plausíveis discordam.
+
 SQLAlchemy com SQLite persistente é a referência local; transacções usam operações
 condicionais para claim e finalização. Alembic versiona o schema. PostgreSQL é
 evolução prevista, mas só será anunciado suportado após testes nesse dialecto.
-Sem imagens ou embeddings em disco pela aplicação. Multipart pode usar ficheiros
-temporários; o operador deve considerar tmpfs, cifragem de disco e limpeza de temporários.
+Sem imagens persistidas pela aplicação. Embeddings só existem no perfil cifrado
+autorizado; nenhuma resposta, log ou métrica inclui estes vectores. Multipart/OCR
+podem usar ficheiros temporários; o operador deve considerar tmpfs, cifragem de
+disco e limpeza de temporários. Migração corrente: `0005_identities`.
 
 ## 6. Estados e concorrência
 
@@ -149,7 +177,9 @@ das imagens; nunca uma lista pública de hashes biométricos.
 | `POST /v1/faces/compare` | `verify` | Comparação 1:1 via bundle |
 | `POST /v1/liveness` | `verify` | Check via bundle |
 | `POST /v1/documents/analyze` | `verify` | Check documental via bundle |
-| `POST /v1/auth/authenticate` | `verify` | 501 até existir protocolo de autenticação |
+| `POST /v1/auth/authenticate?identity_id=...` | `capture_review` | Selfie contra perfil provisório; sempre authenticated=false |
+| `GET /v1/capture-learning`, `/status`, `POST /refine`, `/{id}/review` | `capture_review` | Revisão global do tenant reservado; labels independentes |
+| `GET/DELETE /v1/capture-identities/{id}` | `capture_review` | Gestão de perfis do portal por operador |
 | `GET /metrics` | `metrics` | Métricas sem tenant, sujeito, sessão ou dados biométricos |
 
 Erros seguem `{error: {code, message}, request_id}`. 401: credencial ausente/inválida;
@@ -157,6 +187,10 @@ Erros seguem `{error: {code, message}, request_id}`. 401: credencial ausente/inv
 estado/idempotência; 410: captura expirada; 413: tamanho; 415: formato; 422: schema;
 429: limite local; 503: motor/schema indisponível. Validação nunca devolve os
 valores recebidos de campos potencialmente sensíveis.
+
+As rotas `/capture-api` e `/identity-api` usam Bearer separado das chaves acima;
+contratos completos estão nos SDD específicos. `capture_review` é scope
+administrativo global explícito, não concedido à chave legacy nem por `muth init`.
 
 ## 8. Confiança, decisão e dados biométricos
 
@@ -181,12 +215,15 @@ descarregar pesos automaticamente nem usar um threshold genérico como calibrado
 - Consentimento registado evidencia a declaração recebida do backend da empresa;
   não prova, por si só, a interface apresentada ou a vontade do utilizador.
 - Scopes por chave; rotação configura duas chaves temporariamente e remove a antiga.
-- Fernet da biblioteca `cryptography` cifra consentimento/subject e resultado.
+- Fernet da biblioteca `cryptography` cifra consentimento/subject, resultado,
+  fila de aprendizagem e perfil facial autorizado.
   A chave persistente é fornecida pelo operador; dados em memória podem usar chave efémera.
 - Eliminação limpa dados cifrados, fingerprint e idempotência. Backups seguem a
   retenção do operador; apagar uma linha não apaga automaticamente backups antigos.
-- Captura expira em 30 minutos por defeito; retenção 30 dias, configurável.
-  Purge deve ser executado por scheduler externo; acesso após retenção é recusado.
+- Novos uploads expiram em 30 minutos por defeito. Retenção B2B: 30 dias;
+  portal: resultado 1 dia ou 30 dias com contribuição; perfil: 365 dias.
+  Worker do portal limpa periodicamente; operações B2B seguem o runbook de purge.
+  Acesso após retenção é recusado mesmo antes da limpeza física.
 - Chaves e `.env` ficam fora do controlo de versões; bootstrap grava `.env` com modo 0600.
 - Corpo limitado antes do parser; validação de imagem em thread; API key e scopes
   verificados antes de consumir uploads. Sem CORS aberto.
@@ -201,7 +238,7 @@ descarregar pesos automaticamente nem usar um threshold genérico como calibrado
 | IDOR entre empresas | tenant em todas as queries; testes de 404 | Testar também PostgreSQL antes de migração |
 | Replay de chamadas | idempotência e estado | Não prova frescura da captura |
 | Ressurreição após delete | token de claim e update condicional | Backup exige processo próprio |
-| Foto/tela/deepfake | resultado inconclusivo até integrar motor | Sem garantia PAD/IAD |
+| Foto/tela/deepfake | PAD RGB integrado, abstention e limiares não calibrados inconclusivos | Sem garantia PAD/IAD local nem defesa completa de injection |
 | Vazamento em logs/erros | códigos e request IDs sem payload | Observabilidade externa precisa de revisão |
 | Abuso de upload | corpo, pixels, formato e rate limit | Proxy, TLS e quotas distribuídas são do operador |
 | Peso não licenciado/modificado | manifesto, checksum e revisão de licença | Auditoria de cadeia de fornecimento P1 |

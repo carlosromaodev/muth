@@ -1,5 +1,37 @@
 # Alterações
 
+## 0.6.0
+
+Resultado web com campos documentais extraídos localmente por Tesseract,
+confiança/origem, conflitos e checks estruturais MRZ. Opt-in separado de
+aprendizagem, propostas de correcção OCR e fila cifrada: apenas revisão
+administrativa independente gera amostras para a calibração existente.
+`document_data.processing_version=muth-document-ocr-v2` versiona a extracção,
+com fallback adaptativo de PSM 6 para PSM 11 e resolução conservadora de conflitos.
+Guardar identidade exige outro consentimento e persiste template SFace de 128
+valores normalizados junto dos dados documentais, cifrados e versionados pelo
+fingerprint do modelo. Consulta, eliminação e comparação posterior 1:1 usam
+capability própria de perfil, sem expor vectores ou chaves B2B no browser.
+
+**Compatibilidade:** aplicar `0004_capture_learning` e `0005_identities` com
+`muth migrate`. Instalar Tesseract com `por`/`eng` no host; Docker inclui ambos.
+Quota do portal passa de 1000 para 10 000 sessões activas. Token de captura permite
+consulta/eliminação até à retenção; novos uploads conservam o prazo de 30 minutos.
+Retenção por defeito: resultado sem contribuição 1 dia, contribuição 30 dias e
+perfil facial independente 365 dias. Withdraw elimina contribuições/amostras,
+revoga calibrações dependentes e limita o resultado original ao prazo normal
+restante, no máximo um dia a partir da retirada. Delete explícito da captura
+também elimina os perfis dela derivados; expiração normal do resultado não os elimina.
+Nova quota `MUTH_IDENTITY_MAX_PROFILES=10000` para perfis activos por tenant,
+independente da quota de captura; novas inscrições acima do limite recebem 429.
+
+Novo scope administrativo `capture_review`, sem concessão pelo bootstrap/legacy,
+para `/v1/capture-learning`, `/v1/capture-identities` e `/v1/auth/authenticate`.
+Auth devolve comparação provisória e `authenticated=false`; continua sem protocolo
+de login pronto. Nota 0–10 mantém teto experimental 6, autenticidade por confirmar
+e ausência de precisão validada em BI angolanos. Reiniciar a interface conserva
+contribuições/perfis autorizados; o utilizador pode retirá-los/eliminá-los explicitamente.
+
 ## 0.5.0
 
 Portal responsive de captura servido pelo FastAPI: consentimento, câmara/ficheiro,

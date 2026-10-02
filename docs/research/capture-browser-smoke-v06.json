@@ -1,0 +1,50 @@
+{
+  "service_version": "0.6.0",
+  "browser": "Chromium via agent-browser",
+  "backend_mode": "biometric_research",
+  "document_fixture": "explicitly synthetic front/back; public upstream portrait matches selfie",
+  "flow": [
+    "three_separate_consents",
+    "front",
+    "back",
+    "selfie",
+    "review",
+    "document_fields_and_score",
+    "encrypted_provisional_identity",
+    "new_selfie_1_to_1",
+    "suggest_document_correction",
+    "withdraw_learning",
+    "delete_identity"
+  ],
+  "real_backend_result": {
+    "extracted_document_fields": 8,
+    "indicative_score": 6.0,
+    "evidence_ceiling": 6,
+    "identity_status": "provisional",
+    "authenticated": false,
+    "authenticity_confirmed": false
+  },
+  "negative_capture": "overexposed synthetic back yielded OCR fields but unavailable score and unavailable enrollment",
+  "checked_widths_px": [
+    320,
+    390,
+    1280
+  ],
+  "horizontal_overflow": false,
+  "browser_storage_entries": 0,
+  "console_errors": 0,
+  "automated_accessibility": {
+    "axe_version": "4.11",
+    "reviewed_state": "result after withdrawal/deletion at width320",
+    "violations": 0,
+    "passes": 24,
+    "incomplete": [
+      "color-contrast"
+    ]
+  },
+  "camera_regression": "v0.5 virtual-camera coverage retained; this v0.6 flow used uploads",
+  "physical_mobile_camera_evaluated": false,
+  "external_deployment": false,
+  "learning_examples_promoted": 0,
+  "passed": true
+}

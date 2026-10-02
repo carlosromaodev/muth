@@ -128,15 +128,15 @@ class Gates:
             raise ValueError("max_false_reject must be between zero and one")
 
 
-async def refinement_loop(service, interval, tenants, *, pause=None):
+async def refinement_loop(service, interval, tenants, *, pause=None, dispatch=run_in_threadpool):
     pause = pause or asyncio.sleep
     while True:
         await pause(interval)
-        if not service.store.db.ready():
+        if not await dispatch(service.store.db.ready):
             continue
         for tenant in tenants:
             try:
-                await run_in_threadpool(service.run, tenant)
+                await dispatch(service.run, tenant)
             except Exception as exc:
                 logging.getLogger("muth.learning").warning(
                     "refinement_failed exception_type=%s", type(exc).__name__
@@ -202,7 +202,10 @@ class LearningService:
         if feedback.source != "human_review":
             raise MuthError(422, "source_not_integrated", "Fonte oficial ainda não integrada.")
         with self.store.db.transaction() as db:
-            if not self.store.db.in_memory:
+            if (
+                not self.store.db.in_memory
+                and not db.connection().connection.driver_connection.in_transaction
+            ):
                 db.execute(text("BEGIN IMMEDIATE"))
             session = self.store._row(db, principal, session_id)
             sample = db.scalar(
@@ -247,7 +250,10 @@ class LearningService:
 
     def withdraw(self, principal, session_id, request_id):
         with self.store.db.transaction() as db:
-            if not self.store.db.in_memory:
+            if (
+                not self.store.db.in_memory
+                and not db.connection().connection.driver_connection.in_transaction
+            ):
                 db.execute(text("BEGIN IMMEDIATE"))
             session = self.store._row(db, principal, session_id)
             payload = CreateSession.model_validate_json(self.store._decrypt(session.payload))

@@ -5,7 +5,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from muth.capture_learning import CaptureLearningInfo
+from muth.document_models import DocumentData
 from muth.domain import Check, DocumentCheck, VerificationStatus
+from muth.identity_service import IdentityRegistration
 
 
 class CaptureScore(BaseModel):
@@ -48,3 +51,14 @@ class CaptureVerification(BaseModel):
     limitations: list[str]
     scoring_version: str
     reasons: list[str]
+    document_data: DocumentData = Field(
+        default_factory=lambda: DocumentData(status="unavailable", reasons=["ocr_not_configured"])
+    )
+    learning: CaptureLearningInfo = Field(
+        default_factory=lambda: CaptureLearningInfo(
+            status="not_opted_in",
+            consented=False,
+            explanation="Esta verificação não contribui para a aprendizagem.",
+        )
+    )
+    identity: IdentityRegistration = Field(default_factory=IdentityRegistration)

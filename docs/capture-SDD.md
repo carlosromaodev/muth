@@ -1,12 +1,15 @@
-# Portal de captura — MUTH v0.5
+# Portal de captura — MUTH v0.6
 
-SDD 1.3 · 2 de Outubro de 2026. Complementa os SDD da
-[plataforma](SDD.md) e [biometria](biometrics-SDD.md).
+SDD 1.4 · 2 de Outubro de 2026. Complementa os SDD da
+[plataforma](SDD.md), [biometria](biometrics-SDD.md) e
+[OCR/aprendizagem/identidade guardada](web-learning-SDD.md).
 
 ## Experiência e contratos
 
 O utilizador abre `/` ou `/capture`, aceita a política, fotografa frente/verso do
-documento e selfie, revê as três imagens e recebe o resultado. A câmara só abre
+documento e selfie, revê as três imagens e recebe dados documentais e nota. Opt-ins
+separados, inicialmente desmarcados, permitem contribuir para aprendizagem e
+guardar identidade; a captura funciona sem ambos. A câmara só abre
 num gesto explícito. Documentos preferem a câmara traseira, selfie a frontal;
 ficheiros JPEG/PNG e captura nativa do dispositivo servem de alternativa.
 Não existe login ou chave B2B no navegador.
@@ -29,14 +32,20 @@ paradas após foto, troca de etapa, navegação, invisibilidade e reinício.
 | `POST /capture-api/sessions/{id}/verify` | Bearer + Idempotency-Key; exactamente document_front/document_back/selfie |
 | `GET /capture-api/sessions/{id}` | Bearer da mesma sessão; resultado concluído |
 | `DELETE /capture-api/sessions/{id}` | Bearer da mesma sessão; elimina payloads/resultados |
+| `POST /capture-api/sessions/{id}/document-corrections` | Bearer da mesma sessão; propostas OCR sem labels/subject |
+| `DELETE /capture-api/sessions/{id}/learning-consent` | Bearer da mesma sessão; retira contribuição sem apagar a extracção original |
+| `GET/DELETE /identity-api/identities/{id}` | Bearer próprio do perfil; consulta/eliminação sem embedding |
+| `POST /identity-api/identities/{id}/compare` | Bearer próprio do perfil; apenas selfie, comparação provisória |
 
 ## Fronteira de segurança e retenção
 
 Tokens Fernet derivados para a finalidade de captura contêm audience, sessão,
 tenant reservado e expiração. Ficam em memória e headers, nunca em URLs ou logs.
-Não autenticam `/v1`, não acedem a outras sessões nem permitem feedback/review/
-learning. `capture-portal` não pode ter TenantKey; `local` também é recusado para
-evitar colisão com a chave legacy. O portal nunca activa opt-in de aprendizagem.
+Não autenticam `/v1`, não acedem a outras sessões nem permitem review ou promoção.
+O token de identidade tem derivação/finalidade distinta e não funciona como token
+de captura. `capture-portal` não pode ter TenantKey; `local` também é recusado para
+evitar colisão com a chave legacy. Aprendizagem e perfil requerem políticas
+versionadas e aceitação independente, verificadas pelo backend.
 
 Origin e Sec-Fetch-Site bloqueiam mutações cross-site. Rotas são validadas mesmo
 quando a app é montada sob um prefixo. Autorização e existência/expiração precedem
@@ -44,25 +53,32 @@ a leitura do upload; o token é revalidado depois da leitura. Multipart tem trê
 ficheiros, zero campos e limites por imagem/corpo. Deadline total de 120 segundos
 por defeito responde 408 e liberta capacidade quando o upload não acaba.
 
-Quota pública: 1000 sessões activas por defeito; limitação por endereço pseudónimo,
+Quota pública: 10 000 sessões activas por defeito; limitação por endereço pseudónimo,
 limite global e mapa de janelas com tamanho controlado. X-Forwarded-For só deve
 ser aceite de proxies confiáveis. O Compose mantém a API numa rede interna e só
 expõe Caddy. Ao disponibilizar a API de outra forma, rever a configuração de proxy.
 
-Resultados do portal são cifrados por um dia por defeito. Migração `0003_capture`
-acrescenta `capture_result`; resultado normal e relatório são finalizados na mesma
-transacção. Delete/purge eliminam ambos. Worker limpa retenção e capturas
+Resultados sem contribuição são cifrados por um dia; opt-in de aprendizagem
+alarga resultado/contribuição a 30 dias por defeito. Migrações `0003_capture`,
+`0004_capture_learning` e `0005_identities` acrescentam relatório, fila e perfis.
+Finalização de resultado e dados derivados é transaccional. Delete explícito
+elimina resultado, contribuição/amostras e perfil; purge normal da sessão conserva
+o perfil autorizado até à sua retenção independente. Worker limpa capturas
 abandonadas a cada 300 segundos e a criação liberta quota expirada. Não há
 garantia de apagamento físico de páginas SQLite/backups; estes exigem operação
-própria. O token dura até ao prazo de captura, não todo o período de retenção.
+própria. O token de captura dura até à retenção, mas o backend limita novos uploads
+ao prazo de captura de 30 minutos. Consulta/retirada/eliminação seguem o estado e
+a retenção reais mesmo quando o token ainda é válido. Token do perfil dura até à
+retenção deste. Reiniciar a interface conserva contribuições/perfis consentidos;
+retirada e eliminação explícitas estão disponíveis no resultado.
 
 ## Nota 0–10 e evidência disponível
 
 O resultado apresenta **Nota dos sinais de autenticidade**, de natureza
 **indicativa**, sempre `authenticity_confirmed=false`. Não representa uma
 probabilidade, certificação ou confirmação oficial. Não altera o estado da
-verificação para approved. O verso avalia legibilidade, sem identificar campos,
-confirmar que é um BI ou autenticar o documento.
+verificação para approved. OCR combina campos rotulados de frente/verso, apresenta
+conflitos e checks MRZ; não autentica o documento nem consulta o emissor.
 
 Na versão actual, a fórmula versionada é:
 
@@ -82,6 +98,28 @@ biométrica válida. Demo, falta de scores, imagens insuficientes, output inespe
 ou divergência PAD devolvem **nota indisponível**, nunca um valor inventado.
 Sem autenticidade documental, o resultado permanece review/rejected.
 
+## Dados documentais e registo reutilizável
+
+`document_data` devolve leitura extracted/partial/unavailable, tipo BI/passaporte
+quando reconhecido, campos disponíveis, confiança OCR, lado, origem OCR/MRZ,
+validação estrutural e conflitos. Nome, número, datas, sexo, nacionalidade e
+filiação só aparecem quando extraídos. Não há texto OCR bruto ou dados inventados.
+O motor local Tesseract tem timeout/saída limitada e temporários eliminados;
+falta de executável/idiomas mantém o resto do resultado disponível.
+`processing_version=muth-document-ocr-v2` identifica esta extracção. PSM 6 começa
+a leitura; PSM 11 é tentado perante campos insuficientes, campos essenciais da
+frente ausentes ou valores inválidos. Ambas as tentativas partilham o deadline
+e orçamento de saída; conflitos entre leituras plausíveis mantêm-se explícitos.
+
+Com terceiro consentimento explícito, um resultado com dados e sinais suficientes
+pode guardar template SFace e credencial cifrados. O estado é sempre provisório;
+um embedding identifica padrões faciais, não cria um novo algoritmo por pessoa.
+Vector normalizado de 128 valores e fingerprint permanecem no backend. A resposta
+inclui ID, prazo e token próprio; comparação posterior devolve Face/PAD, nunca
+`authenticated=true`. [Critérios, revisão e ciclo de vida](web-learning-SDD.md).
+Perfis activos têm quota de 10 000 por tenant por defeito, configurada por
+`MUTH_IDENTITY_MAX_PROFILES`; acima do limite, a inscrição devolve 429.
+
 ## Rastreabilidade
 
 | ID | Critério | Evidência |
@@ -91,9 +129,12 @@ Sem autenticidade documental, o resultado permanece review/rejected.
 | C-03 | Responsive e acessível | 320/380/390 px sem overflow; Axe nos estados analisados e foco por teclado |
 | C-04 | Token limitado, origem e isolamento | CaptureApiTests; token cruzado/expirado, tenant legacy e root_path |
 | C-05 | Upload limitado e sem acumulação | Três partes, deadline, revalidação do token, métricas a zero |
-| C-06 | Resultados cifrados, replay e eliminação | Replay exacto, alteração do verso 409, purge/scrub, sem LearningSample |
+| C-06 | Resultados cifrados, replay e eliminação | Replay exacto, alteração do verso 409, purge/scrub; pendentes sem LearningSample |
 | C-07 | Nota honesta | CaptureScoreTests: nulidade, teto, duplicação, falhas e escala |
 | C-08 | Entrega portátil | Assets no wheel, migração, configuração HTTPS e instruções locais |
+| C-09 | Dados documentais no resultado | OCR real sintético, conflitos, MRZ, timeout/indisponibilidade |
+| C-10 | Aprendizagem por autorização e revisão | Fila pending_review, propostas bounded, scope e retirada/revogação |
+| C-11 | Perfil cifrado e comparação 1:1 | Opt-in separado, vector validado privado, token isolado e eliminação |
 
 ## HTTPS e acesso mobile
 
@@ -129,10 +170,13 @@ docker compose up --build -d api gateway
 
 Num ambiente com proxy TLS, o Dockerfile aceita opcionalmente o secret BuildKit
 `proxy_ca`; passar o bundle de CA apropriado com `docker build --secret
-id=proxy_ca,src=/caminho/ca-bundle.pem -t muth:0.5 .`. O certificado só é montado
+id=proxy_ca,src=/caminho/ca-bundle.pem -t muth:0.6 .`. O certificado só é montado
 durante a instalação de dependências, com verificação TLS activa.
 
 A API não publica porta no host; o gateway termina TLS. O manifesto research não
 autoriza um serviço comercial só porque foi colocado num container. A instalação
 de destino precisa dos seus próprios pesos/configuração e da avaliação do piloto.
+O container inclui Tesseract e dados `por`/`eng`; verificar com
+`docker compose run --rm --no-deps api tesseract --list-langs`. A instalação local
+do README prepara os mesmos idiomas, sem fornecedor OCR externo.
 Nenhum deploy externo foi realizado nesta entrega.

@@ -21,7 +21,7 @@ def bootstrap(path: Path, tenant: str) -> None:
         tenant_id=tenant,
         key_id=f"{tenant}-dev",
         key_sha256=hashlib.sha256(api_key.encode()).hexdigest(),
-        scopes=SCOPES,
+        scopes=SCOPES - {"capture_review"},
     )
     tenant_json = json.dumps([key.model_dump(mode="json")], separators=(",", ":"))
     content = (
@@ -116,8 +116,12 @@ def main(argv=None) -> int:
                 else:
                     if not database.ready():
                         raise ValueError("Schema indisponível.")
-                    count = SessionStore(database, settings).purge()
-                    print(f"Payloads eliminados por retenção: {count}.")
+                    from muth.identity_store import IdentityStore
+
+                    store = SessionStore(database, settings)
+                    count = store.purge()
+                    profiles = IdentityStore(store).purge()
+                    print(f"Payloads eliminados por retenção: {count}; perfis: {profiles}.")
             finally:
                 database.engine.dispose()
         return 0

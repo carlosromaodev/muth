@@ -134,7 +134,7 @@ class ApiTests(unittest.TestCase):
                 client.post(
                     "/v1/auth/authenticate", headers={"X-API-Key": "test-secret"}
                 ).status_code,
-                501,
+                403,
             )
 
     def test_fake_mime_type_does_not_bypass_validation(self):
@@ -187,7 +187,7 @@ class ApiTests(unittest.TestCase):
             response = self.client.post(endpoint, files=fields)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()["outcome"], "inconclusive")
-        self.assertEqual(self.client.post("/v1/auth/authenticate").status_code, 501)
+        self.assertEqual(self.client.post("/v1/auth/authenticate").status_code, 403)
 
 
 if __name__ == "__main__":

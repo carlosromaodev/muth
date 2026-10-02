@@ -36,7 +36,7 @@ class CaptureAccess:
             audience="muth-capture-v1",
             session_id=session.session_id,
             tenant_id=self.store.settings.capture_tenant_id,
-            expires_at=session.expires_at.timestamp(),
+            expires_at=session.retain_until.timestamp(),
         )
         return self.box.encrypt(claims.model_dump_json().encode()).decode()
 
@@ -101,13 +101,20 @@ async def authorize_capture(request: Request) -> None:
         and bool(parts[3])
         and (
             (len(parts) == 4 and method in {"GET", "DELETE"})
-            or (len(parts) == 5 and parts[4] == "verify" and method == "POST")
+            or (
+                len(parts) == 5
+                and (
+                    (parts[4] in {"verify", "document-corrections"} and method == "POST")
+                    or (parts[4] == "learning-consent" and method == "DELETE")
+                )
+            )
         )
     )
     if not (config or create or session_route):
         raise MuthError(404, "capture_route_not_found", "Operação de captura indisponível.")
     settings = request.app.state.settings
-    if not config and (not settings.capture_portal_enabled or settings.engine_mode == "disabled"):
+    collecting = create or (session_route and method == "POST")
+    if collecting and (not settings.capture_portal_enabled or settings.engine_mode == "disabled"):
         raise MuthError(503, "capture_unavailable", "A captura está temporariamente indisponível.")
     check_capture_origin(request)
     address = request.client.host if request.client else "unknown"
@@ -116,6 +123,9 @@ async def authorize_capture(request: Request) -> None:
         if request.headers.get("content-type", "").split(";", 1)[0].strip() != "application/json":
             raise MuthError(415, "capture_json_required", "O consentimento exige JSON.")
         request.app.state.capture_limiter.check(address, creation=True)
+    if session_route and len(parts) == 5 and parts[4] == "document-corrections":
+        if request.headers.get("content-type", "").split(";", 1)[0].strip() != "application/json":
+            raise MuthError(415, "capture_json_required", "As correcções exigem JSON.")
     if session_route:
         principal = request.app.state.capture_access.authenticate(
             request.headers.get("authorization"), parts[3]
@@ -129,7 +139,12 @@ async def authorize_capture(request: Request) -> None:
                 raise MuthError(503, "database_not_ready", "Execute a migração da base de dados.")
             if session_route:
                 session = request.app.state.store.get(principal, parts[3])
-                if session.expires_at.timestamp() <= request.app.state.store.clock():
+                if (
+                    method == "POST"
+                    and len(parts) == 5
+                    and parts[4] == "verify"
+                    and session.expires_at.timestamp() <= request.app.state.store.clock()
+                ):
                     raise MuthError(
                         410, "session_expired", "O prazo da captura terminou. Recomece."
                     )
