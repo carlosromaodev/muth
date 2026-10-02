@@ -1,0 +1,11 @@
+{$MUTH_DOMAIN} {
+    encode zstd gzip
+    request_body {
+        max_size 17MB
+    }
+    reverse_proxy api:8000 {
+        transport http {
+            response_header_timeout 150s
+        }
+    }
+}

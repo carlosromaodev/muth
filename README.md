@@ -1,7 +1,7 @@
 # MUTH
 
 Infraestrutura africana de identidade digital, com foco inicial no BI angolano.
-Versão v0.4 em Python 3.12/FastAPI, seguindo o [SDD](docs/SDD.md) e o
+Versão v0.5 em Python 3.12/FastAPI, seguindo o [SDD](docs/SDD.md) e o
 [SDD biométrico](docs/biometrics-SDD.md).
 
 **Face e Liveness executam modelos reais em CPU.** YuNet/SFace e MiniFASNet ONNX
@@ -23,6 +23,25 @@ UV_CACHE_DIR=/tmp/muth-uv-cache uv sync --locked --extra biometrics
 `muth init` cria `.env` com chaves aleatórias e permissões 0600. Não sobrescreve
 configuração existente e não imprime segredos. O processo lê `.env` automaticamente.
 Documentação interativa: <http://127.0.0.1:8000/docs>.
+
+## Captura mobile e web
+
+Abrir <http://127.0.0.1:8000> para consentimento, frente/verso do documento,
+selfie, revisão e resultado. Câmara e fotografias são escolhidas pelo utilizador;
+nenhuma chave B2B vai para o browser. O mesmo servidor fornece interface e API.
+Aplicar `muth migrate` para a migração `0003_capture` antes de iniciar a v0.5.
+
+A nota 0–10 mede sinais disponíveis, com **teto actual de 6/10** e autenticidade
+por confirmar. Demo/falta de evidência mostra nota indisponível. Não confirma
+oficialmente documentos nem garante uma pessoa real. A captura do verso analisa
+legibilidade; OCR/autenticidade continuam por implementar.
+
+No telemóvel, a câmara JavaScript precisa de HTTPS; localhost funciona no próprio
+dispositivo. [Portal, segurança e configuração HTTPS](docs/capture-SDD.md).
+`MUTH_CAPTURE_PORTAL_ENABLED=false` desactiva os endpoints públicos de captura.
+Resultados do portal têm retenção de um dia, limpeza periódica e eliminação por
+sessão; imagens/tokens não são guardados no browser e imagens não são persistidas
+pelo serviço. O fluxo público não participa na aprendizagem.
 
 ## Activar os motores biométricos
 

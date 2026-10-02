@@ -40,6 +40,17 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = Field(default=120, ge=1, le=10000)
     max_inference_requests: int = Field(default=2, ge=1, le=16)
     max_control_request_bytes: int = Field(default=64 * 1024, ge=1024, le=1024 * 1024)
+    request_body_timeout_seconds: float = Field(default=120, ge=0.01, le=600)
+    capture_portal_enabled: bool = True
+    capture_tenant_id: str = Field(default="capture-portal", pattern=r"^[a-zA-Z0-9_-]{1,80}$")
+    capture_policy_version: str = Field(
+        default="capture-privacy-v1", pattern=r"^[a-zA-Z0-9_.-]{1,80}$"
+    )
+    capture_max_request_bytes: int = Field(default=16 * 1024 * 1024, gt=0, le=32 * 1024 * 1024)
+    capture_rate_limit_per_minute: int = Field(default=120, ge=1, le=1000)
+    capture_creation_limit_per_minute: int = Field(default=10, ge=1, le=100)
+    capture_max_sessions: int = Field(default=1000, ge=1, le=100_000)
+    capture_retention_days: int = Field(default=1, ge=1, le=7)
 
     @model_validator(mode="after")
     def validate_config(self):
@@ -62,6 +73,10 @@ class Settings(BaseSettings):
             raise ValueError("Uma chave não pode pertencer a múltiplos principals.")
         if len({item.key_id for item in self.tenants}) != len(self.tenants):
             raise ValueError("key_id deve ser único.")
+        if self.capture_tenant_id == "local" or any(
+            item.tenant_id == self.capture_tenant_id for item in self.tenants
+        ):
+            raise ValueError("O tenant do portal de captura é reservado e não pode ter chaves B2B.")
         if self.api_key.get_secret_value():
             import hashlib
 

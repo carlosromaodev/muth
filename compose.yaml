@@ -1,0 +1,50 @@
+services:
+  api:
+    build: .
+    env_file: .env
+    environment:
+      MUTH_DATABASE_URL: sqlite:///./data/muth.db
+      MUTH_BIOMETRIC_MANIFEST: /app/models/biometrics/manifest.json
+    command: [uvicorn, 'muth.main:create_app', --factory, --host, '0.0.0.0', --port, '8000', --proxy-headers, '--forwarded-allow-ips=*']
+    volumes:
+      - muth-data:/app/data
+      - ${MUTH_MODELS_DIRECTORY:-./models}:/app/models:ro
+    restart: unless-stopped
+    networks: [backend]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  gateway:
+    image: caddy:2-alpine
+    environment:
+      MUTH_DOMAIN: ${MUTH_DOMAIN:?Define MUTH_DOMAIN para o endereço HTTPS do portal}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1},api
+    ports: ['80:80', '443:443', '443:443/udp']
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [backend, edge]
+  migrate:
+    build: .
+    env_file: .env
+    environment:
+      MUTH_DATABASE_URL: sqlite:///./data/muth.db
+    command: [muth, migrate]
+    profiles: [tools]
+    volumes: [muth-data:/app/data]
+    networks: [backend]
+networks:
+  backend:
+    internal: true
+  edge: {}
+volumes:
+  muth-data: {}
+  caddy-data: {}
+  caddy-config: {}

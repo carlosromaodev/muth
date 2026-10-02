@@ -42,7 +42,7 @@ from muth.errors import MuthError
 from muth.media import ImageInput
 from muth.security import Principal
 
-SCHEMA_VERSION = "0002_learning"
+SCHEMA_VERSION = "0003_capture"
 
 
 class Base(DeclarativeBase):
@@ -60,6 +60,7 @@ class SessionRow(Base):
     retain_until: Mapped[float] = mapped_column(Float, index=True)
     payload: Mapped[str | None] = mapped_column(Text)
     result: Mapped[str | None] = mapped_column(Text)
+    capture_result: Mapped[str | None] = mapped_column(Text)
     idempotency_hash: Mapped[str | None] = mapped_column(String(64))
     fingerprint: Mapped[str | None] = mapped_column(String(64))
     attempt: Mapped[str | None] = mapped_column(String(32))
@@ -395,6 +396,7 @@ class SessionStore:
             status="deleted",
             payload=None,
             result=None,
+            capture_result=None,
             idempotency_hash=None,
             fingerprint=None,
             attempt=None,

@@ -1,0 +1,29 @@
+{
+  "version": "0.5.0",
+  "transport": "HTTPS via Caddy, certificate verified using its local CA",
+  "container_uid": 10001,
+  "database_migration": "0003_capture",
+  "health_status": 200,
+  "ready_status": 200,
+  "page_and_assets": "passed with CSP",
+  "flow": "create, verify CPU, replay, read, delete",
+  "score": {
+    "value": 6.0,
+    "label": "Nota dos sinais de autenticidade",
+    "kind": "indicative",
+    "authenticity_confirmed": false,
+    "evidence_ceiling": 6.0,
+    "explanation": "Indicador = 10 × máximo(0, similaridade facial) × sinal de liveness × menor índice de legibilidade dos documentos. Limitado a 6/10 enquanto a autenticidade documental e a escala não estiverem validadas. Sinais reprovados limitam a nota a 2/10; frente e verso iguais dão 0. Não confirma autenticidade."
+  },
+  "status": "review",
+  "mode": "configured",
+  "fixtures": [
+    "upstream public image_T1.jpg",
+    "upstream public image_F1.jpg"
+  ],
+  "limitations": [
+    "Local container smoke; no external domain deployment.",
+    "Public fixture self-match is not population accuracy.",
+    "Local CA verification does not certify a public TLS deployment."
+  ]
+}

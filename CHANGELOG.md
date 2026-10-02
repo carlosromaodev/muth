@@ -1,5 +1,20 @@
 # Alterações
 
+## 0.5.0
+
+Portal responsive de captura servido pelo FastAPI: consentimento, câmara/ficheiro,
+frente/verso, selfie, recaptura, revisão e resultado. Capabilities de sessão sem
+chave B2B no browser, tenant reservado, guard de origem, quota/rate limit/deadline,
+replay das três imagens e retenção automática. Relatório cifrado e nota indicativa
+0–10 com teto actual 6, autenticidade sempre por confirmar e demo sem nota.
+
+**Compatibilidade:** aplicar `0003_capture`. Captura pública activada por defeito
+no servidor configurado; desactivar com `MUTH_CAPTURE_PORTAL_ENABLED=false`.
+Retenção própria do portal: um dia por defeito, sem opt-in de aprendizagem.
+Upload tem deadline de 120 segundos (`MUTH_REQUEST_BODY_TIMEOUT_SECONDS`).
+Assets entram no wheel; B2B `/v1` conserva autenticação/scopes. HTTPS mobile tem
+configuração Caddy/Compose fornecida, sem deploy externo nesta entrega.
+
 ## 0.4.0
 
 Qualidade facial geométrica/exposição, contratos de inferência no arranque e

@@ -1,14 +1,28 @@
+import asyncio
 import threading
 import time
 from uuid import uuid4
 
 from fastapi import Request
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
+from starlette._utils import get_route_path
 from starlette.responses import JSONResponse
 
 from muth.capacity import InferenceCapacity
+from muth.capture_security import authorize_capture
 from muth.errors import MuthError
 from muth.security import authenticate, require_scope
+
+WEB_SECURITY_HEADERS = {
+    "Content-Security-Policy": (
+        "default-src 'none'; script-src 'self'; style-src 'self'; "
+        "img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; "
+        "font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+    ),
+    "Referrer-Policy": "no-referrer",
+    "Permissions-Policy": "camera=(self), microphone=(), geolocation=()",
+    "X-Frame-Options": "DENY",
+}
 
 
 class RateLimiter:
@@ -95,6 +109,8 @@ def is_inference_request(path, method):
     if path in {"/v1/verifications", "/v1/faces/compare", "/v1/liveness", "/v1/documents/analyze"}:
         return True
     parts = path.split("/")
+    if len(parts) == 5 and parts[:3] == ["", "capture-api", "sessions"]:
+        return bool(parts[3]) and parts[4] == "verify"
     return (
         len(parts) == 5
         and parts[:3] == ["", "v1", "sessions"]
@@ -120,6 +136,7 @@ class PlatformMiddleware:
         status = 500
         response_started = False
         admitted = False
+        request_path = get_route_path(scope)
 
         async def traced_send(message):
             nonlocal status, response_started
@@ -134,15 +151,25 @@ class PlatformMiddleware:
                         (b"x-content-type-options", b"nosniff"),
                     ]
                 )
+                web_path = request_path
+                if web_path in {"/", "/capture"} or web_path.startswith("/assets/"):
+                    present = {name.lower() for name, _ in headers}
+                    headers.extend(
+                        (name.lower().encode(), value.encode())
+                        for name, value in WEB_SECURITY_HEADERS.items()
+                        if name.lower().encode() not in present
+                    )
                 message = {**message, "headers": headers}
             await send(message)
 
         try:
-            path = scope["path"]
+            path = request_path
+            request = Request(scope)
             if path == "/metrics" or path == "/v1" or path.startswith("/v1/"):
-                request = Request(scope)
                 principal = authenticate(request, request.headers.get("x-api-key"))
                 require_scope(principal, operation_scope(path, scope["method"]))
+            if path == "/capture-api" or path.startswith("/capture-api/"):
+                await authorize_capture(request)
             inference = is_inference_request(path, scope["method"])
             if inference:
                 admitted = self.capacity.acquire_request()
@@ -151,7 +178,9 @@ class PlatformMiddleware:
                         429, "inference_capacity_exceeded", "Capacidade de inferência ocupada."
                     )
             limit = (
-                self.settings.max_request_bytes
+                self.settings.capture_max_request_bytes
+                if inference and path.startswith("/capture-api/")
+                else self.settings.max_request_bytes
                 if inference
                 else min(self.settings.max_request_bytes, self.settings.max_control_request_bytes)
             )
@@ -177,8 +206,17 @@ class PlatformMiddleware:
                 if declared > limit:
                     raise MuthError(413, "request_too_large", "Corpo do pedido excede o limite.")
             body = bytearray()
+            deadline = time.monotonic() + self.settings.request_body_timeout_seconds
             while True:
-                message = await receive()
+                try:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise TimeoutError
+                    message = await asyncio.wait_for(receive(), timeout=remaining)
+                except TimeoutError as exc:
+                    raise MuthError(
+                        408, "request_body_timeout", "O envio demorou demasiado. Repita."
+                    ) from exc
                 if message["type"] == "http.disconnect":
                     return
                 chunk = message.get("body", b"")
@@ -189,6 +227,10 @@ class PlatformMiddleware:
                     break
             if declared is not None and declared != len(body):
                 raise MuthError(400, "body_length_mismatch", "Comprimento do corpo inválido.")
+            if inference and path.startswith("/capture-api/"):
+                request.app.state.capture_access.authenticate(
+                    request.headers.get("authorization"), path.split("/")[3]
+                )
             consumed = False
 
             async def bounded_receive():

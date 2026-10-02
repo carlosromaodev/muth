@@ -1,21 +1,33 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
+from starlette.staticfiles import StaticFiles
 
 from muth.api import router
 from muth.capacity import InferenceCapacity
+from muth.capture_api import router as capture_router
+from muth.capture_security import CaptureAccess, CaptureRateLimiter
+from muth.capture_storage import CaptureStore
 from muth.config import Settings
 from muth.engines.biometric import BiometricRuntime
 from muth.engines.bundle import EngineBundle
 from muth.errors import MuthError
 from muth.learning import LearningService, refinement_loop
-from muth.middleware import Metrics, PlatformMiddleware, RateLimiter, error_response
+from muth.middleware import (
+    WEB_SECURITY_HEADERS,
+    Metrics,
+    PlatformMiddleware,
+    RateLimiter,
+    error_response,
+)
 from muth.services.verify import VerifyService
 from muth.storage import Database, SessionStore
 
@@ -41,9 +53,25 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
             if runtime and settings.learning_enabled
             else None
         )
+
+        async def capture_retention_loop():
+            while True:
+                try:
+                    if await run_in_threadpool(database.ready):
+                        await run_in_threadpool(app.state.capture_store.purge)
+                except Exception as exc:
+                    logging.getLogger("muth.capture").warning(
+                        "capture_purge_failed exception_type=%s", type(exc).__name__
+                    )
+                await asyncio.sleep(300)
+
+        retention_task = asyncio.create_task(capture_retention_loop())
         try:
             yield
         finally:
+            retention_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await retention_task
             if task:
                 task.cancel()
                 with suppress(asyncio.CancelledError):
@@ -52,7 +80,7 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
 
     app = FastAPI(
         title="MUTH API",
-        version="0.4.0",
+        version="0.5.0",
         lifespan=lifespan,
         description=(
             "Infraestrutura africana de identidade digital. Sessões B2B com consentimento, "
@@ -62,6 +90,9 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
     app.state.settings = settings
     app.state.database = database
     app.state.store = SessionStore(database, settings)
+    app.state.capture_access = CaptureAccess(app.state.store)
+    app.state.capture_store = CaptureStore(app.state.store)
+    app.state.capture_limiter = CaptureRateLimiter(settings, app.state.store.fingerprint_key)
     app.state.runtime = runtime
     app.state.learning = LearningService(app.state.store, runtime)
     app.state.engines = engines or (runtime.bundle() if runtime else EngineBundle.demo())
@@ -81,6 +112,17 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
         capacity=app.state.capacity,
     )
     app.include_router(router)
+    app.include_router(capture_router)
+    web = Path(__file__).parent / "web"
+    app.mount("/assets", StaticFiles(directory=web, check_dir=False), name="capture-assets")
+
+    @app.get("/", include_in_schema=False)
+    @app.get("/capture", include_in_schema=False)
+    def capture_page():
+        return FileResponse(
+            web / "index.html",
+            headers=WEB_SECURITY_HEADERS,
+        )
 
     @app.exception_handler(MuthError)
     async def domain_error(request: Request, exc: MuthError):
@@ -116,7 +158,7 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
 
     @app.get("/health", tags=["Sistema"])
     def health() -> dict[str, str]:
-        return {"status": "ok", "service": "muth", "version": "0.4.0"}
+        return {"status": "ok", "service": "muth", "version": "0.5.0"}
 
     @app.get("/health/ready", tags=["Sistema"])
     def ready() -> JSONResponse:

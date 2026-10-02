@@ -1,6 +1,52 @@
 # Resultado da execução do SDD
 
-2 de Outubro de 2026 · MUTH v0.4.0 · SDD 1.2.
+2 de Outubro de 2026 · MUTH v0.5.0 · SDD 1.3.
+
+## Estado actual — captura mobile e web v0.5
+
+Portal responsive servido pelo FastAPI, seguindo [capture-SDD.md](capture-SDD.md):
+consentimento, câmara/upload, frente/verso, selfie, revisão e resultado. Câmara
+aberta por gesto, tracks paradas e alternativa para permissão negada. Não há
+chave B2B no navegador, persistência de imagens/tokens no browser ou aprendizagem
+no portal. Resultados cifrados usam a migração `0003_capture`, com retenção
+limitada e purge periódico.
+
+Nota real dos sinais disponíveis em escala 0–10, com teto experimental de 6/10,
+indisponível sem evidência. Nenhuma captura confirma autenticidade documental ou
+aprova automaticamente uma identidade. OCR, autenticação de BI e calibração
+local permanecem gates abertos.
+
+Validação executada nesta versão:
+
+- **166 testes passaram**, incluindo os motores CPU opcionais.
+- Instalação isolada do wheel sem biometria: **140 passaram, 26 opcionais omitidos**.
+- Ruff lint/formatação, JavaScript syntax check e `git diff --check` passaram.
+- Wheel/sdist incluem interface e migração; excluem credenciais, imagens, pesos e DB.
+- Migrações upgrade/downgrade/upgrade e comparação ORM/schema passaram.
+- Browser Chromium: câmara virtual, recaptura, upload real, revisão e inferência CPU.
+  O exemplo público produziu 6/10, com `authenticity_confirmed=false` e estado review.
+- Layouts 320/380/390 px sem overflow; teclado, estados de erro e Axe nos estados
+  registados. Não substitui teste com câmaras de telemóveis físicos.
+- Testes ASGI cobrem origem, tenant reservado, token cruzado/expirado, prefixo da
+  app, deadline de upload, quota, replay, cifragem, eliminação e ausência de learning.
+- Build Docker passou com proxy/CA do ambiente e utilizador UID 10001; assets
+  presentes no pacote instalado. Compose foi validado sintacticamente.
+- Smoke com API/container e gateway Caddy por HTTPS passou: certificado validado
+  pela CA local, health/readiness, interface, inferência CPU, replay, leitura e
+  eliminação. DNS público/TLS de produção e telemóvel físico não foram testados.
+
+[Registo de browser](research/capture-browser-smoke-v05.json) documenta fixtures,
+nota, dispositivos simulados e limites da verificação. Os exemplos públicos não
+alimentam a aprendizagem e não medem desempenho numa população.
+[Registo de container/HTTPS](research/capture-container-smoke-v05.json) conserva
+somente os resultados agregados, sem credenciais, IDs ou imagens.
+
+Código publicado em <https://github.com/carlosromaodev/muth>. GitHub Actions
+continua impedido de iniciar pelo bloqueio de facturação da conta. Não houve
+deploy num domínio externo nem teste físico em telemóvel. A configuração HTTPS
+com Caddy, isolamento de rede e provisionamento de modelos é fornecida no SDD.
+
+## Histórico v0.4
 
 ## Estado actual — biometria e backend v0.4
 

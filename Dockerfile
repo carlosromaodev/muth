@@ -1,9 +1,12 @@
+# syntax=docker/dockerfile:1
 FROM python:3.12-slim AS build
 COPY --from=ghcr.io/astral-sh/uv:0.12.19 /uv /bin/uv
 WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
-RUN uv sync --locked --no-dev --no-editable --extra biometrics
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then export SSL_CERT_FILE=/run/secrets/proxy_ca; fi; \
+    uv sync --locked --no-dev --no-editable --extra biometrics
 
 FROM python:3.12-slim
 RUN groupadd --gid 10001 muth && useradd --uid 10001 --gid 10001 --create-home muth

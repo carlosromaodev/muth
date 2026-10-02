@@ -1,0 +1,38 @@
+{
+  "service_version": "0.5.0",
+  "browser": "Chromium via agent-browser",
+  "backend_mode": "biometric_research",
+  "camera_test": "virtual camera; open/capture/retake and track shutdown verified",
+  "upload_test": "three public upstream fixtures; not a population accuracy evaluation",
+  "flow": [
+    "consent",
+    "front",
+    "back",
+    "selfie",
+    "review",
+    "result",
+    "restart_and_delete"
+  ],
+  "real_backend_result": {
+    "indicative_score": 6.0,
+    "evidence_ceiling": 6,
+    "authenticity_confirmed": false,
+    "status": "review"
+  },
+  "checked_widths_px": [
+    320,
+    380,
+    390,
+    1280,
+    1440
+  ],
+  "horizontal_overflow": false,
+  "camera_denial_fallback": "passed",
+  "browser_storage_entries": 0,
+  "console_errors": 0,
+  "automated_accessibility": "zero Axe violations in reviewed consent/capture/review/privacy states; incomplete rules and real-device evaluation remain",
+  "public_fixtures_used_for_learning": false,
+  "physical_mobile_camera_evaluated": false,
+  "external_deployment": false,
+  "passed": true
+}
