@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     retention_days: int = Field(default=30, ge=1, le=365)
     processing_lease_seconds: int = Field(default=120, ge=1, le=3600)
     rate_limit_per_minute: int = Field(default=120, ge=1, le=10000)
+    max_inference_requests: int = Field(default=2, ge=1, le=16)
+    max_control_request_bytes: int = Field(default=64 * 1024, ge=1024, le=1024 * 1024)
 
     @model_validator(mode="after")
     def validate_config(self):

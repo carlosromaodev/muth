@@ -9,6 +9,7 @@ from pathlib import Path
 from cryptography.fernet import Fernet
 from pydantic import ValidationError
 
+from muth.benchmark import benchmark_biometrics, load_biometric_dataset
 from muth.config import SCOPES, Settings, TenantKey
 from muth.evaluation import evaluate_face, validate_manifest
 from muth.storage import Database, SessionStore
@@ -54,6 +55,21 @@ def main(argv=None) -> int:
     benchmark.add_argument("csv", type=Path)
     benchmark.add_argument("--threshold", type=float, required=True)
     benchmark.add_argument("--output", type=Path)
+    dataset = commands.add_parser(
+        "validate-biometric-dataset",
+        help="Validar dataset local, autorização e separação de pessoas",
+    )
+    dataset.add_argument("dataset", type=Path)
+    cpu = commands.add_parser(
+        "benchmark-biometrics", help="Avaliar imagens locais em CPU com limiares fixos"
+    )
+    cpu.add_argument("dataset", type=Path)
+    cpu.add_argument("--model-manifest", type=Path, required=True)
+    cpu.add_argument("--face-threshold", type=float, default=0.363)
+    cpu.add_argument("--liveness-threshold", type=float, default=0.8)
+    cpu.add_argument(
+        "--output", type=Path, default=Path("data/evaluation/biometric-benchmark.json")
+    )
     args = parser.parse_args(argv)
     try:
         if args.command == "init":
@@ -72,6 +88,22 @@ def main(argv=None) -> int:
                 print(f"Relatório criado em {args.output}.")
             else:
                 print(result)
+        elif args.command == "validate-biometric-dataset":
+            loaded = load_biometric_dataset(args.dataset)
+            print(
+                f"Dataset validado: {len(loaded.samples)} ensaios; "
+                "autorização declarada localmente."
+            )
+        elif args.command == "benchmark-biometrics":
+            result = benchmark_biometrics(
+                args.dataset,
+                args.model_manifest,
+                face_threshold=args.face_threshold,
+                liveness_threshold=args.liveness_threshold,
+            )
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
+            print(f"Relatório agregado criado em {args.output}; nenhuma política foi promovida.")
         else:
             settings = Settings()
             if settings.in_memory:

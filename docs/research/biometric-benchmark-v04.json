@@ -1,0 +1,458 @@
+{
+  "schema_version": "biometric-benchmark-v1",
+  "purpose": "research_fixture",
+  "label_source": "upstream_example",
+  "authorization_independently_verified": false,
+  "promotion_allowed": false,
+  "thresholds": {
+    "face": 0.363,
+    "liveness": 0.8
+  },
+  "thresholds_fitted": false,
+  "comparison": "score >= fixed_threshold; scored baseline abstentions are diagnostic only",
+  "model_fingerprints": {
+    "face": "d691500079c8666160c8bba9558714c703c0bf7a071894cdaa7c17f53bbe7c43",
+    "liveness": "b38bbe61f4fa39a65a399409ae3d9bda6e2c80a9594016264582cfc3d8da5424"
+  },
+  "splits": {
+    "test": {
+      "face": {
+        "attempted": 1,
+        "distinct_known_participants": 0,
+        "unknown_participant_trials": 1,
+        "scored": 1,
+        "threshold_evaluable": 1,
+        "unscored": 0,
+        "engine_abstentions": 1,
+        "baseline_policy_abstentions": 1,
+        "diagnostic_abstentions": 0,
+        "quality_failures": 0,
+        "acquisition_failures": 0,
+        "unscored_other_failures": 0,
+        "unsupported_attack_trials": 0,
+        "class_counts": {
+          "genuine": {
+            "attempted": 1,
+            "threshold_evaluable": 1,
+            "unscored": 0,
+            "diagnostic_abstentions": 0
+          },
+          "impostor": {
+            "attempted": 0,
+            "threshold_evaluable": 0,
+            "unscored": 0,
+            "diagnostic_abstentions": 0
+          }
+        },
+        "metrics": {
+          "fmr": {
+            "errors": 0,
+            "total": 0,
+            "rate": null,
+            "ci95": null,
+            "independent_participants_design": null,
+            "repeated_participants": false,
+            "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+          },
+          "fnmr": {
+            "errors": 0,
+            "total": 1,
+            "rate": 0.0,
+            "ci95": null,
+            "independent_participants_design": false,
+            "repeated_participants": false,
+            "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+          },
+          "positive_diagnostic_non_accept": {
+            "errors": 0,
+            "total": 1,
+            "rate": 0.0,
+            "ci95": null,
+            "independent_participants_design": false,
+            "repeated_participants": false,
+            "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+          },
+          "positive_engine_non_accept": {
+            "errors": 1,
+            "total": 1,
+            "rate": 1.0,
+            "ci95": null,
+            "independent_participants_design": false,
+            "repeated_participants": false,
+            "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+          }
+        },
+        "reason_counts": {
+          "face_threshold_not_locally_calibrated": 1
+        },
+        "latency_ms": {
+          "p50": 133.7456139990536,
+          "p95": 133.7456139990536
+        },
+        "sample_warning": true,
+        "attack_coverage_certified": false,
+        "by_device": {
+          "unknown": {
+            "attempted": 1,
+            "distinct_known_participants": 0,
+            "unknown_participant_trials": 1,
+            "scored": 1,
+            "threshold_evaluable": 1,
+            "unscored": 0,
+            "engine_abstentions": 1,
+            "baseline_policy_abstentions": 1,
+            "diagnostic_abstentions": 0,
+            "quality_failures": 0,
+            "acquisition_failures": 0,
+            "unscored_other_failures": 0,
+            "unsupported_attack_trials": 0,
+            "class_counts": {
+              "genuine": {
+                "attempted": 1,
+                "threshold_evaluable": 1,
+                "unscored": 0,
+                "diagnostic_abstentions": 0
+              },
+              "impostor": {
+                "attempted": 0,
+                "threshold_evaluable": 0,
+                "unscored": 0,
+                "diagnostic_abstentions": 0
+              }
+            },
+            "metrics": {
+              "fmr": {
+                "errors": 0,
+                "total": 0,
+                "rate": null,
+                "ci95": null,
+                "independent_participants_design": null,
+                "repeated_participants": false,
+                "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+              },
+              "fnmr": {
+                "errors": 0,
+                "total": 1,
+                "rate": 0.0,
+                "ci95": null,
+                "independent_participants_design": false,
+                "repeated_participants": false,
+                "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+              },
+              "positive_diagnostic_non_accept": {
+                "errors": 0,
+                "total": 1,
+                "rate": 0.0,
+                "ci95": null,
+                "independent_participants_design": false,
+                "repeated_participants": false,
+                "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+              },
+              "positive_engine_non_accept": {
+                "errors": 1,
+                "total": 1,
+                "rate": 1.0,
+                "ci95": null,
+                "independent_participants_design": false,
+                "repeated_participants": false,
+                "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+              }
+            },
+            "reason_counts": {
+              "face_threshold_not_locally_calibrated": 1
+            },
+            "latency_ms": {
+              "p50": 133.7456139990536,
+              "p95": 133.7456139990536
+            },
+            "sample_warning": true,
+            "attack_coverage_certified": false
+          }
+        }
+      },
+      "liveness": {
+        "attempted": 3,
+        "distinct_known_participants": 0,
+        "unknown_participant_trials": 3,
+        "scored": 3,
+        "threshold_evaluable": 3,
+        "unscored": 0,
+        "engine_abstentions": 3,
+        "baseline_policy_abstentions": 3,
+        "diagnostic_abstentions": 0,
+        "quality_failures": 0,
+        "acquisition_failures": 0,
+        "unscored_other_failures": 0,
+        "unsupported_attack_trials": 2,
+        "class_counts": {
+          "live": {
+            "attempted": 1,
+            "threshold_evaluable": 1,
+            "unscored": 0,
+            "diagnostic_abstentions": 0
+          },
+          "spoof": {
+            "attempted": 2,
+            "threshold_evaluable": 2,
+            "unscored": 0,
+            "diagnostic_abstentions": 0
+          }
+        },
+        "metrics": {
+          "apcer_supported_pai": {
+            "errors": 0,
+            "total": 0,
+            "rate": null,
+            "ci95": null,
+            "independent_participants_design": null,
+            "repeated_participants": false,
+            "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+          },
+          "bpcer": {
+            "errors": 0,
+            "total": 1,
+            "rate": 0.0,
+            "ci95": null,
+            "independent_participants_design": false,
+            "repeated_participants": false,
+            "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+          },
+          "positive_diagnostic_non_accept": {
+            "errors": 0,
+            "total": 1,
+            "rate": 0.0,
+            "ci95": null,
+            "independent_participants_design": false,
+            "repeated_participants": false,
+            "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+          },
+          "positive_engine_non_accept": {
+            "errors": 1,
+            "total": 1,
+            "rate": 1.0,
+            "ci95": null,
+            "independent_participants_design": false,
+            "repeated_participants": false,
+            "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+          },
+          "worst_supported_pai_apcer": {
+            "rate": null,
+            "attack_type": null,
+            "errors": 0,
+            "total": 0,
+            "observed_pai_count": 0,
+            "ci95": null,
+            "selection_note": "Maximum observed rate among threshold-evaluable supported PAI categories; descriptive selection only, without a combined confidence interval."
+          }
+        },
+        "reason_counts": {
+          "liveness_threshold_not_locally_calibrated": 3,
+          "rgb_pad_does_not_prove_capture_freshness": 3
+        },
+        "latency_ms": {
+          "p50": 24.856709000232513,
+          "p95": 31.47768140079279
+        },
+        "sample_warning": true,
+        "attack_coverage_certified": false,
+        "by_device": {
+          "unknown": {
+            "attempted": 3,
+            "distinct_known_participants": 0,
+            "unknown_participant_trials": 3,
+            "scored": 3,
+            "threshold_evaluable": 3,
+            "unscored": 0,
+            "engine_abstentions": 3,
+            "baseline_policy_abstentions": 3,
+            "diagnostic_abstentions": 0,
+            "quality_failures": 0,
+            "acquisition_failures": 0,
+            "unscored_other_failures": 0,
+            "unsupported_attack_trials": 2,
+            "class_counts": {
+              "live": {
+                "attempted": 1,
+                "threshold_evaluable": 1,
+                "unscored": 0,
+                "diagnostic_abstentions": 0
+              },
+              "spoof": {
+                "attempted": 2,
+                "threshold_evaluable": 2,
+                "unscored": 0,
+                "diagnostic_abstentions": 0
+              }
+            },
+            "metrics": {
+              "apcer_supported_pai": {
+                "errors": 0,
+                "total": 0,
+                "rate": null,
+                "ci95": null,
+                "independent_participants_design": null,
+                "repeated_participants": false,
+                "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+              },
+              "bpcer": {
+                "errors": 0,
+                "total": 1,
+                "rate": 0.0,
+                "ci95": null,
+                "independent_participants_design": false,
+                "repeated_participants": false,
+                "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+              },
+              "positive_diagnostic_non_accept": {
+                "errors": 0,
+                "total": 1,
+                "rate": 0.0,
+                "ci95": null,
+                "independent_participants_design": false,
+                "repeated_participants": false,
+                "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+              },
+              "positive_engine_non_accept": {
+                "errors": 1,
+                "total": 1,
+                "rate": 1.0,
+                "ci95": null,
+                "independent_participants_design": false,
+                "repeated_participants": false,
+                "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+              },
+              "worst_supported_pai_apcer": {
+                "rate": null,
+                "attack_type": null,
+                "errors": 0,
+                "total": 0,
+                "observed_pai_count": 0,
+                "ci95": null,
+                "selection_note": "Maximum observed rate among threshold-evaluable supported PAI categories; descriptive selection only, without a combined confidence interval."
+              }
+            },
+            "reason_counts": {
+              "liveness_threshold_not_locally_calibrated": 3,
+              "rgb_pad_does_not_prove_capture_freshness": 3
+            },
+            "latency_ms": {
+              "p50": 24.856709000232513,
+              "p95": 31.47768140079279
+            },
+            "sample_warning": true,
+            "attack_coverage_certified": false
+          }
+        },
+        "by_attack_type": {
+          "other": {
+            "attempted": 2,
+            "distinct_known_participants": 0,
+            "unknown_participant_trials": 2,
+            "scored": 2,
+            "threshold_evaluable": 2,
+            "unscored": 0,
+            "engine_abstentions": 2,
+            "baseline_policy_abstentions": 2,
+            "diagnostic_abstentions": 0,
+            "quality_failures": 0,
+            "acquisition_failures": 0,
+            "unscored_other_failures": 0,
+            "unsupported_attack_trials": 2,
+            "class_counts": {
+              "live": {
+                "attempted": 0,
+                "threshold_evaluable": 0,
+                "unscored": 0,
+                "diagnostic_abstentions": 0
+              },
+              "spoof": {
+                "attempted": 2,
+                "threshold_evaluable": 2,
+                "unscored": 0,
+                "diagnostic_abstentions": 0
+              }
+            },
+            "metrics": {
+              "apcer_supported_pai": {
+                "errors": 0,
+                "total": 0,
+                "rate": null,
+                "ci95": null,
+                "independent_participants_design": null,
+                "repeated_participants": false,
+                "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+              },
+              "bpcer": {
+                "errors": 0,
+                "total": 0,
+                "rate": null,
+                "ci95": null,
+                "independent_participants_design": null,
+                "repeated_participants": false,
+                "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+              },
+              "positive_diagnostic_non_accept": {
+                "errors": 0,
+                "total": 0,
+                "rate": null,
+                "ci95": null,
+                "independent_participants_design": null,
+                "repeated_participants": false,
+                "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+              },
+              "positive_engine_non_accept": {
+                "errors": 0,
+                "total": 0,
+                "rate": null,
+                "ci95": null,
+                "independent_participants_design": null,
+                "repeated_participants": false,
+                "interval_assumption": "Binomial interval withheld: research fixture, unknown or repeated participants."
+              },
+              "worst_supported_pai_apcer": {
+                "rate": null,
+                "attack_type": null,
+                "errors": 0,
+                "total": 0,
+                "observed_pai_count": 0,
+                "ci95": null,
+                "selection_note": "Maximum observed rate among threshold-evaluable supported PAI categories; descriptive selection only, without a combined confidence interval."
+              }
+            },
+            "reason_counts": {
+              "liveness_threshold_not_locally_calibrated": 2,
+              "rgb_pad_does_not_prove_capture_freshness": 2
+            },
+            "latency_ms": {
+              "p50": 24.00176100036333,
+              "p95": 24.771214200245595
+            },
+            "sample_warning": true,
+            "attack_coverage_certified": false,
+            "rgb_pad_supported_attack_category": false,
+            "unsupported_threshold_diagnostic": {
+              "errors": 0,
+              "total": 2,
+              "rate": 0.0,
+              "ci95": null,
+              "independent_participants_design": false,
+              "repeated_participants": true,
+              "interval_assumption": "Unsupported attack: descriptive threshold diagnostic, no PAD coverage claim."
+            }
+          }
+        }
+      }
+    }
+  },
+  "limitations": [
+    "This report never authorizes policy promotion or certifies production accuracy.",
+    "Authorization and human labels are declarations, not independently verified evidence.",
+    "False match/PAD rates use threshold-evaluable scores; acquisition failures and abstentions are reported separately. Positive diagnostic non-accept applies the fixed score threshold and acquisition/quality blocks; engine non-accept counts all outcomes other than PASS, including baseline policy abstention.",
+    "Baseline threshold abstention with a valid score is not acquisition failure.",
+    "Participant-disjoint splits and image hashes reduce leakage, but cannot detect transformed duplicates or different photos of renamed identities. Identical image bytes cannot be assigned contradictory known subjects in consented evaluation.",
+    "Wilson intervals are withheld for repeated/unknown participants and public fixtures; unique participants alone do not establish independence from devices or environments.",
+    "RGB PAD does not prove camera freshness or resist injection; injection and other attacks contribute no evidence of supported PAD coverage.",
+    "Research fixtures demonstrate inference only, not accuracy for Angola or Africa.",
+    "Latency measures CPU engine calls, excluding dataset decoding and model startup."
+  ]
+}

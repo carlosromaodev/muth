@@ -1,7 +1,7 @@
 # MUTH
 
 Infraestrutura africana de identidade digital, com foco inicial no BI angolano.
-Versão v0.3 em Python 3.12/FastAPI, seguindo o [SDD](docs/SDD.md) e o
+Versão v0.4 em Python 3.12/FastAPI, seguindo o [SDD](docs/SDD.md) e o
 [SDD biométrico](docs/biometrics-SDD.md).
 
 **Face e Liveness executam modelos reais em CPU.** YuNet/SFace e MiniFASNet ONNX
@@ -106,6 +106,9 @@ consentimento recebida e o resultado; não prova que a captura veio de uma câma
 - PAD RGB com dois modelos, preprocessing verificado e diagnóstico de divergência.
 - Opt-in de aprendizagem, feedback por revisor e partições separadas por pessoa.
 - Calibração automática, gates de erro/regressão, versões, rollback e revogação.
+- Admissão antes do upload e limite de workers, incluindo decodificação cancelada.
+- Carregamento dos bytes verificados, contratos dos modelos e qualidade geométrica/exposição.
+- Benchmark CPU por imagem, dispositivo e ataque, com abstentions e pior APCER por PAI.
 
 ## Aprendizagem supervisionada
 
@@ -126,6 +129,8 @@ permite executar imediatamente; `GET /v1/learning` mostra amostras e relatórios
 Dados insuficientes dão `collecting`; uma versão só substitui a anterior quando
 passa gates e melhora métricas. A recolha não garante melhoria a cada verificação.
 Labels devem vir de evidência independente; scores não servem como seus próprios labels.
+O teste final só é consultado depois de passar a validação. Cada fingerprint tem
+um orçamento limitado de consultas ao teste; novas amostras não o reiniciam.
 
 Por defeito são necessários ≥50 exemplos por classe na calibração e ≥400 por
 classe na validação e no teste, com pessoas separadas. Retirar consentimento em
@@ -172,6 +177,28 @@ Benchmark sintético da ferramenta, sem valor de precisão biométrica:
 O manifesto de exemplo tem placeholders e deve falhar até serem fornecidos pesos,
 checksums e evidência de revisão. A validação não emite aprovação jurídica.
 
+Para avaliar **imagens rotuladas** com os motores reais, preparar um dataset local
+a partir de [biometric-dataset.example.json](examples/biometric-dataset.example.json):
+
+```bash
+.venv/bin/muth validate-biometric-dataset /caminho/dataset/manifest.json
+.venv/bin/muth benchmark-biometrics /caminho/dataset/manifest.json \
+  --model-manifest models/biometrics/manifest.json \
+  --face-threshold 0.363 --liveness-threshold 0.8 \
+  --output data/evaluation/biometric-benchmark.json
+```
+
+O benchmark conserva limiares fixos e separa calibração, validação e teste. Mostra
+FMR/FNMR, APCER por ataque, BPCER, aquisição/qualidade e latência, sem promover
+políticas. Declarações de autorização exigem evidência local e não são verificadas
+independentemente pela ferramenta. [Protocolo e melhorias](docs/backend-refinement.md).
+
+Por defeito, `MUTH_MAX_INFERENCE_REQUESTS=2` limita pedidos biométricos por processo;
+capacidade ocupada devolve 429 com `Retry-After: 1` antes de ler o corpo. Workers de
+decodificação/inferência conservam o limite mesmo após cancelamento HTTP. Pedidos
+de controlo têm limite de 64 KiB (`MUTH_MAX_CONTROL_REQUEST_BYTES`). Ajustar recursos
+e limites do proxy através de medições no hardware de destino.
+
 ## Documentação
 
 - [SDD e critérios de aceitação](docs/SDD.md)
@@ -182,5 +209,7 @@ checksums e evidência de revisão. A validação não emite aprovação jurídi
 - [Resultado da implementação](docs/implementation-status.md)
 - [Alterações de compatibilidade](CHANGELOG.md)
 
-O Dockerfile e o workflow CI são fornecidos como configuração; não houve publicação
-nem execução remota. O [roadmap](docs/roadmap.md) define os gates para piloto real.
+O código está publicado em <https://github.com/carlosromaodev/muth>. Dockerfile e
+workflow CI são fornecidos; não houve deploy. A execução do GitHub Actions foi
+bloqueada pelo GitHub por um problema de facturação da conta; validação local fica
+registada na documentação. O [roadmap](docs/roadmap.md) define os gates para piloto real.

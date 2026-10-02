@@ -139,6 +139,7 @@ class Database:
         self.engine = create_engine(settings.database_url, **options)
         self.sessions = sessionmaker(self.engine, expire_on_commit=False)
         self.lock = threading.RLock()
+        self.local = threading.local()
         if settings.in_memory:
             Base.metadata.create_all(self.engine)
         self.in_memory = settings.in_memory
@@ -146,17 +147,40 @@ class Database:
     @contextmanager
     def transaction(self):
         # Serialize the in-memory connection; predicates also protect cross-process writes.
-        with self.lock, self.sessions.begin() as session:
-            yield session
+        with self.lock:
+            active = getattr(self.local, "session", None)
+            if active is not None:
+                connection = active.connection()
+                # sqlite3's legacy mode does not BEGIN on SELECT or SAVEPOINT.
+                # Releasing an outermost savepoint would otherwise commit writes
+                # that must still belong to the enclosing transaction.
+                if not connection.connection.driver_connection.in_transaction:
+                    connection.exec_driver_sql("BEGIN")
+                with active.begin_nested():
+                    yield active
+                return
+            with self.sessions.begin() as session:
+                self.local.session = session
+                try:
+                    yield session
+                finally:
+                    del self.local.session
 
     def ready(self) -> bool:
-        try:
-            with self.engine.connect() as connection:
-                connection.execute(select(SessionRow.session_id).limit(1))
-                if not self.in_memory:
-                    version = connection.execute(text("SELECT version_num FROM alembic_version"))
-                    return version.scalar() == SCHEMA_VERSION
+        def check(connection):
+            connection.execute(select(SessionRow.session_id).limit(1))
+            if not self.in_memory:
+                version = connection.execute(text("SELECT version_num FROM alembic_version"))
+                return version.scalar() == SCHEMA_VERSION
             return True
+
+        try:
+            with self.lock:
+                active = getattr(self.local, "session", None)
+                if active is not None:
+                    return check(active)
+                with self.engine.connect() as connection:
+                    return check(connection)
         except Exception:
             return False
 

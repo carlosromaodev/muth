@@ -1,6 +1,6 @@
 # MUTH — motores biométricos e aprendizagem
 
-SDD 1.1 · 2 de Outubro de 2026 · implementação v0.3.0.
+SDD 1.2 · 2 de Outubro de 2026 · implementação v0.4.0.
 Extensão do [SDD da plataforma](SDD.md); prioridade exclusiva: Face e Liveness.
 
 ## 1. Resultado pretendido
@@ -63,6 +63,11 @@ flowchart TD
 
 Valores iniciais de qualidade: face ≥60 pixels, variância Laplaciana ≥15,
 roll ≤30°, detector ≥0,9; detecção limitada a 960 pixels na maior dimensão.
+Na imagem reduzida do detector, face ≥30 pixels; landmarks devem estar dentro da
+imagem e apresentar geometria coerente. Deslocamento lateral do nariz dividido
+pela distância entre olhos ≤0,65. Esta relação é uma proxy, não uma medição de yaw
+3D. Fracção escura (cinzento ≤5) ou saturada (≥250) ≤0,95; transparência parcial é
+recusada. Os valores são conservadores e precisam de avaliação local.
 São regras iniciais versionadas, ainda não optimizadas para câmaras angolanas.
 Sem rosto, múltiplos rostos detectados, face truncada, blur, pose inadequada ou
 output inválido produzem inconclusivo. Divergência de liveness >0,5 também abstém.
@@ -75,9 +80,13 @@ O servidor carrega ONNX verificado e não executa pickle nem downloads.
 
 `score_kind=cosine_similarity` tem intervalo [-1,1]; `liveness_softmax` [0,1].
 Nenhum é uma probabilidade de identidade ou certificado antifraude.
-Cada Check expõe fingerprint de pesos/preprocessamento/qualidade, versão de
+Cada Check expõe fingerprint de pesos/preprocessamento/qualidade/runtime, versão de
 calibração, threshold e diagnósticos numéricos. Embeddings não saem do motor.
 Baseline facial 0,363 e PAD 0,8 **não habilitam pass/fail** sem calibração validada.
+Os modelos OpenCV e ONNX são carregados a partir dos mesmos bytes verificados;
+contratos de dimensões/tipos e probes de arranque recusam artefactos incompatíveis.
+Mudanças das versões OpenCV/numpy/ORT invalidam a calibração anterior através do
+fingerprint. Não reutilizar políticas v0.3 com o novo preprocessing v2.
 
 O extractor de retrato permite exercitar a comparação com uma foto documental;
 o check documental fica inconclusivo. OCR e autenticidade não foram implementados
@@ -127,9 +136,14 @@ preprocessamento recebem fingerprint novo e começam sem calibração validada.
 
 Threshold é escolhido **só na calibração**, minimizando falsa rejeição entre
 candidatos com falso aceite empírico aceitável. Validação e teste apenas aprovam
-ou bloqueiam; não escolhem o threshold. O painel de teste usa os primeiros N
+ou bloqueiam; não escolhem o threshold. Uma validação reprovada ou sem melhoria
+conserva o teste fechado e não consome consultas. O painel de teste usa os primeiros N
 exemplos por classe/dispositivo/ataque. O orçamento limita ajustes ao holdout;
 não torna tentativas repetidas estatisticamente independentes.
+O campo histórico `max_attempts_per_test_panel` continua a chamar-se assim, mas
+limita consultas efectivas ao teste durante toda a vida do fingerprint/tenant/role.
+Os membros de cada relatório incluem apenas exemplos efectivamente consultados;
+novas amostras fora do painel não provocam avaliações nem revogações artificiais.
 Wilson pressupõe independência; estes gates são protecções de laboratório,
 não certificação nem garantia de erro futuro ou de 95% simultâneo entre grupos.
 Dados de população, país e condições de captura não observados exigem avaliação própria.

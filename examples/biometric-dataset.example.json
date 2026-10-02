@@ -1,0 +1,50 @@
+{
+  "schema_version": "biometric-dataset-v1",
+  "dataset_id": "replace-with-pseudonymous-dataset-id",
+  "purpose": "consented_evaluation",
+  "authorization_file": "replace-with-local-authorization.txt",
+  "label_source": "human_review",
+  "samples": [
+    {
+      "role": "face",
+      "split": "calibration",
+      "selfie": "images/replace-with-calibration-selfie.jpg",
+      "reference": "images/replace-with-calibration-reference.jpg",
+      "subject_id": "participant-calibration-001",
+      "reference_subject_id": "participant-calibration-001",
+      "label": "genuine",
+      "device_group": "android_entry",
+      "source_reference": "replace-with-confirmed-review-001"
+    },
+    {
+      "role": "face",
+      "split": "validation",
+      "selfie": "images/replace-with-validation-selfie.jpg",
+      "reference": "images/replace-with-validation-reference.jpg",
+      "subject_id": "participant-validation-001",
+      "reference_subject_id": "participant-validation-002",
+      "label": "impostor",
+      "device_group": "android_modern",
+      "source_reference": "replace-with-confirmed-review-002"
+    },
+    {
+      "role": "liveness",
+      "split": "test",
+      "selfie": "images/replace-with-test-live.jpg",
+      "subject_id": "participant-test-001",
+      "label": "live",
+      "device_group": "ios",
+      "source_reference": "replace-with-confirmed-review-003"
+    },
+    {
+      "role": "liveness",
+      "split": "test",
+      "selfie": "images/replace-with-test-screen-replay.jpg",
+      "subject_id": "participant-test-002",
+      "label": "spoof",
+      "device_group": "android_entry",
+      "attack_type": "screen_replay",
+      "source_reference": "replace-with-confirmed-review-004"
+    }
+  ]
+}

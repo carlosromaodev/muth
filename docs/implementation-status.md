@@ -1,6 +1,51 @@
 # Resultado da execução do SDD
 
-2 de Outubro de 2026 · MUTH v0.3.0 · SDD 1.1.
+2 de Outubro de 2026 · MUTH v0.4.0 · SDD 1.2.
+
+## Estado actual — biometria e backend v0.4
+
+Refinamento implementado segundo [backend-refinement.md](backend-refinement.md):
+qualidade geométrica/exposição, bytes verificados em OpenCV, contratos de modelos,
+admissão antes do upload, capacidade de decoder/inferência retida após cancelamento,
+cleanup de claims e transacções SQLite/readiness corrigidas. Aprendizagem consulta
+teste apenas após validação; PAD deduplica pela pessoa capturada e relatórios
+conservam somente exemplos consultados.
+
+Benchmark offline CPU integrado na CLI: separação de pessoas/imagens, leitura
+segura, FMR/FNMR/APCER/BPCER por split/dispositivo/PAI e pior PAI. Mostra falhas de
+aquisição/qualidade, abstentions e distinção entre limiar diagnóstico e resultado
+real do motor. Não treina pesos nem promove políticas.
+
+Validação executada nesta versão:
+
+- **136 testes passaram**, com dependências biométricas e modelos CPU locais.
+- Instalação isolada do wheel sem biometria: **110 testes passaram, 26 opcionais omitidos**.
+- Ruff lint/formatação e `git diff --check` passaram.
+- Build e inspecção wheel/sdist passaram, incluindo licenças; sem pesos, DB, imagens ou segredos.
+- Migrações upgrade/downgrade/upgrade e comparação ORM/schema passaram, com zero diferenças.
+- CLI de validação/benchmark passou em quatro ensaios públicos: um self-match e três PAD.
+- Paridade Torch/ONNX passou: erro máximo de logits 0,00000131 (V2) e 0,00000286 (V1SE).
+- HTTP real em Uvicorn passou em versão/readiness, Face/Liveness, sessão/replay/delete,
+  métricas de capacidade e limite de controlo. Servidor parado após o teste.
+
+[Smoke v0.4](research/biometric-smoke-v04.json),
+[benchmark público v0.4](research/biometric-benchmark-v04.json) e
+[smoke HTTP](research/http-smoke-v04.json) registam a execução. As três imagens
+públicas usam identidade desconhecida no benchmark; classes de ataque não
+confirmadas ficam em `other`. Não existe denominador para APCER suportado nem
+impostores confirmados para FMR. Todos os checks reais permanecem inconclusivos
+sem calibração. Nenhuma fixture do smoke HTTP alimentou a aprendizagem.
+
+Fingerprints incorporam preprocessing v2 e versões de runtime; políticas v0.3
+não são reutilizadas. Schema mantém `0002_learning`. Pesquisa de OFIQ, Bob e NIST
+orienta qualidade/protocolos, sem copiar código GPL nem alegar conformidade.
+
+Código publicado em <https://github.com/carlosromaodev/muth>. GitHub Actions foi
+impedido de iniciar pelo bloqueio de facturação da conta; isto não é um resultado
+dos testes do código. Docker/deploy não foram executados. Dataset angolano
+consentido e rotulado, ataques físicos e canal de captura continuam no gate aberto.
+
+## Histórico v0.3
 
 ## Estado actual — biometria v0.3
 

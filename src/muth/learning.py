@@ -113,6 +113,20 @@ class Gates:
     max_false_reject: float = 0.10
     max_attempts_per_test_panel: int = 5
 
+    def __post_init__(self):
+        for name in (
+            "min_calibration_per_class",
+            "min_evaluation_per_class",
+            "max_attempts_per_test_panel",
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
+        if not 0 < self.max_false_accept_upper < 1:
+            raise ValueError("max_false_accept_upper must be between zero and one")
+        if not 0 <= self.max_false_reject < 1:
+            raise ValueError("max_false_reject must be between zero and one")
+
 
 async def refinement_loop(service, interval, tenants, *, pause=None):
     pause = pause or asyncio.sleep
@@ -198,7 +212,7 @@ class LearningService:
                     LearningSampleRow.role == feedback.role,
                 )
             )
-            if not sample:
+            if not sample or sample.retain_until <= self.store.clock():
                 raise MuthError(409, "sample_unavailable", "Sem amostra biométrica autorizada.")
             data = json.loads(self.store._decrypt(sample.payload))
             if data["label"] is not None:
@@ -214,6 +228,10 @@ class LearningService:
                         422, "subject_conflict", "Referências incompatíveis com o rótulo."
                     )
                 data["pair"] = ":".join(sorted({sample.subject_hash, captured}))
+            else:
+                # PAD evaluates the captured person, not the claimed document identity.
+                # Reusing one capture across accounts must not manufacture independent people.
+                data["pair"] = captured
             excluded = sample.state == "excluded" or cohort(captured) != sample.split
             # RGB pixels cannot validate camera injection attacks.
             excluded |= feedback.attack_type in {"injection", "other"}
@@ -229,6 +247,8 @@ class LearningService:
 
     def withdraw(self, principal, session_id, request_id):
         with self.store.db.transaction() as db:
+            if not self.store.db.in_memory:
+                db.execute(text("BEGIN IMMEDIATE"))
             session = self.store._row(db, principal, session_id)
             payload = CreateSession.model_validate_json(self.store._decrypt(session.payload))
             payload.consent.learning_opt_in = False
@@ -254,6 +274,10 @@ class LearningService:
                 select(LearningSampleRow.sample_id).where(
                     LearningSampleRow.sample_id.in_(members),
                     LearningSampleRow.retain_until > self.store.clock(),
+                    LearningSampleRow.tenant_id == policy.tenant_id,
+                    LearningSampleRow.role == policy.role,
+                    LearningSampleRow.model_fingerprint == policy.model_fingerprint,
+                    LearningSampleRow.state == "labelled",
                 )
             )
         )
@@ -380,35 +404,26 @@ class LearningService:
                     panel.append(sample)
                     panel_counts[key] += 1
             split["test"] = panel
-            panel_hash = hashlib.sha256(
-                json.dumps([s["sample_id"] for s in panel]).encode()
-            ).hexdigest()
-            snapshot = hashlib.sha256(
-                json.dumps([s["sample_id"] for s in samples]).encode()
-            ).hexdigest()
+            validation_members = split["calibration"] + split["validation"]
+            test_members = validation_members + panel
+
+            def snapshot_hash(members):
+                return hashlib.sha256(
+                    json.dumps(sorted(s["sample_id"] for s in members)).encode()
+                ).hexdigest()
+
+            validation_snapshot = snapshot_hash(validation_members)
+            test_snapshot = snapshot_hash(test_members)
             existing = db.scalar(
                 select(CalibrationRow).where(
                     CalibrationRow.tenant_id == tenant,
                     CalibrationRow.role == role,
                     CalibrationRow.model_fingerprint == engine.fingerprint,
-                    CalibrationRow.snapshot_hash == snapshot,
+                    CalibrationRow.snapshot_hash.in_((validation_snapshot, test_snapshot)),
                 )
             )
             if existing:
                 return {"status": "unchanged", "policy_id": existing.policy_id}
-            attempts = len(
-                list(
-                    db.scalars(
-                        select(CalibrationRow.policy_id).where(
-                            CalibrationRow.tenant_id == tenant,
-                            CalibrationRow.role == role,
-                            CalibrationRow.model_fingerprint == engine.fingerprint,
-                        )
-                    )
-                )
-            )
-            if attempts >= self.gates.max_attempts_per_test_panel:
-                return {"status": "holdout_budget_exhausted"}
             candidates = sorted(
                 {
                     engine.calibration.threshold,
@@ -444,23 +459,53 @@ class LearningService:
                     "threshold": threshold,
                     "gates": self.gates.__dict__,
                     "metric_names": ["FMR", "FNMR"] if role == "face" else ["APCER", "BPCER"],
+                    "holdout_used": False,
                 },
                 [],
             )
-            improved = not self._valid_policy(db, incumbent)
-            for name in ("validation", "test"):
+            incumbent_valid = self._valid_policy(db, incumbent)
+
+            def evaluate_split(name):
                 metrics, failed = evaluation(split[name], threshold, self.gates, role)
                 report[name] = metrics
                 failures.extend(f"{name}:{f}" for f in failed)
-                if not improved or self._valid_policy(db, incumbent):
-                    old, _ = evaluation(split[name], incumbent.threshold, self.gates, role)
+                improved = not incumbent_valid
+                if incumbent_valid:
+                    previous, _ = evaluation(split[name], incumbent.threshold, self.gates, role)
                     for group, metric in metrics.items():
                         for rate in ("false_accept_rate", "false_reject_rate"):
-                            if metric[rate] > old[group][rate]:
+                            if metric[rate] > previous[group][rate]:
                                 failures.append(f"{name}:{group}:regression:{rate}")
-                            improved |= metric[rate] < old[group][rate]
-            if incumbent and self._valid_policy(db, incumbent) and not improved:
+                            improved |= metric[rate] < previous[group][rate]
+                return improved
+
+            # Validation decides whether a candidate is worth an independent test.
+            # A failed/equal validation must never expose held-out error rates.
+            validation_improved = evaluate_split("validation")
+            if incumbent_valid and not validation_improved:
                 failures.append("no_measurable_improvement")
+            members = validation_members
+            snapshot, panel_hash = validation_snapshot, ""
+            if not failures:
+                prior_reports = db.scalars(
+                    select(CalibrationRow.report).where(
+                        CalibrationRow.tenant_id == tenant,
+                        CalibrationRow.role == role,
+                        CalibrationRow.model_fingerprint == engine.fingerprint,
+                    )
+                )
+                # Lifetime budget per tenant/model deliberately survives panel changes,
+                # expiration and revocation. Legacy reports with test metrics count too.
+                attempts = 0
+                for encrypted_report in prior_reports:
+                    previous = json.loads(self.store._decrypt(encrypted_report))
+                    attempts += bool(previous.get("holdout_used", "test" in previous))
+                if attempts >= self.gates.max_attempts_per_test_panel:
+                    return {"status": "holdout_budget_exhausted"}
+                report["holdout_used"] = True
+                evaluate_split("test")
+                members = test_members
+                snapshot, panel_hash = test_snapshot, snapshot_hash(panel)
             policy_id = f"mth_cal_{uuid4().hex}"
             report["failures"] = failures
             policy = CalibrationRow(
@@ -477,7 +522,7 @@ class LearningService:
             )
             db.add(policy)
             db.add_all(
-                CalibrationMemberRow(policy_id=policy_id, sample_id=s["sample_id"]) for s in samples
+                CalibrationMemberRow(policy_id=policy_id, sample_id=s["sample_id"]) for s in members
             )
             if not failures:
                 if not active:

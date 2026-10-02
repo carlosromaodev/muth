@@ -4,6 +4,12 @@ Consulta de GitHub e READMEs oficiais em 2 de Outubro de 2026. Os SHAs e estado
 observados estão em [sources.json](research/sources.json). Estrelas não são evidência
 de segurança, adequação a Angola ou licença dos pesos.
 
+Na v0.4, a pesquisa acrescentou OFIQ, Bob measure/PAD e NIST FRVT para orientar
+qualidade e protocolos de avaliação, sem novas dependências pesadas. ONNX Runtime
+foi consultado para controlo de threads. SHAs, licenças e decisões estão no
+[refinamento do backend](backend-refinement.md). Bob PAD é GPL-3.0 e só foi usado
+como referência metodológica; nenhum código copiado ou importado.
+
 | Repositório | Papel | Licença de código observada | Decisão |
 | --- | --- | --- | --- |
 | [InsightFace](https://github.com/deepinsight/insightface) | Face, alinhamento, embeddings e liveness opcional | README declara MIT; API não identificou SPDX | Candidato P1; resolver direitos dos pesos e benchmark |

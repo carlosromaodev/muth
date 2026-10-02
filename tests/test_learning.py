@@ -9,7 +9,7 @@ from unittest.mock import Mock
 
 from cryptography.fernet import Fernet
 from pydantic import SecretStr
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from muth.config import SCOPES
 from muth.domain import CreateSession, LearningFeedback
@@ -26,7 +26,13 @@ from muth.learning import (
 from muth.main import create_app
 from muth.media import decode_image
 from muth.security import Principal
-from muth.storage import CalibrationRow, Database, LearningSampleRow, SessionStore
+from muth.storage import (
+    CalibrationMemberRow,
+    CalibrationRow,
+    Database,
+    LearningSampleRow,
+    SessionStore,
+)
 from tests.test_muth import png
 from tests.test_sessions import PAYLOAD, settings
 
@@ -105,6 +111,33 @@ class LearningTests(unittest.TestCase):
                             )
                         )
 
+    def add_score(self, split, score, label, sample_id):
+        with self.db.transaction() as db:
+            db.add(
+                LearningSampleRow(
+                    sample_id=sample_id,
+                    tenant_id="alpha",
+                    session_id=sample_id,
+                    role="face",
+                    model_fingerprint=self.engine.fingerprint,
+                    subject_hash=sample_id,
+                    split=split,
+                    state="labelled",
+                    payload=self.store._encrypt(
+                        json.dumps(
+                            {
+                                "score": score,
+                                "device_group": "unknown",
+                                "pair": sample_id,
+                                "label": label,
+                            }
+                        )
+                    ),
+                    created_at=1000,
+                    retain_until=self.store.clock() + 10000,
+                )
+            )
+
     def test_opt_in_demo_and_replay_guards(self):
         self.complete(opt_in=False)
         with self.db.transaction() as db:
@@ -152,6 +185,43 @@ class LearningTests(unittest.TestCase):
             self.complete(), role="liveness", label="spoof", attack_type="injection"
         )
         self.assertEqual(response["state"], "excluded")
+
+    def test_liveness_deduplicates_captured_person_across_document_accounts(self):
+        captured = "captured-person"
+        expected_split = cohort(subject_hash(self.store, "alpha", captured))
+        identities = [
+            f"claimed-person-{i}"
+            for i in range(100)
+            if cohort(subject_hash(self.store, "alpha", f"claimed-person-{i}")) == expected_split
+        ][:2]
+        for identity in identities:
+            self.feedback(
+                self.complete(subject=identity),
+                role="liveness",
+                label="live",
+                capture_subject_reference=captured,
+            )
+        with self.db.transaction() as db:
+            pairs = [
+                json.loads(self.store._decrypt(row.payload))["pair"]
+                for row in db.scalars(
+                    select(LearningSampleRow).where(LearningSampleRow.role == "liveness")
+                )
+            ]
+        self.assertEqual(pairs, [subject_hash(self.store, "alpha", captured)] * 2)
+
+    def test_expired_sample_cannot_accept_feedback(self):
+        sid = self.complete()
+        with self.db.transaction() as db:
+            sample = db.scalar(
+                select(LearningSampleRow).where(
+                    LearningSampleRow.session_id == sid, LearningSampleRow.role == "face"
+                )
+            )
+            sample.retain_until = self.store.clock() - 1
+        with self.assertRaises(MuthError) as error:
+            self.feedback(sid)
+        self.assertEqual(error.exception.code, "sample_unavailable")
 
     def test_not_enough_data_and_wilson_bound(self):
         self.seed(count=30)
@@ -217,6 +287,24 @@ class LearningTests(unittest.TestCase):
             db.get(LearningSampleRow, "face-test-True-0").retain_until = self.store.clock() - 1
         self.assertFalse(self.service.calibration("alpha", "face", self.engine).validated)
 
+    def test_incompatible_member_invalidates_policy(self):
+        self.seed()
+        self.service.run("alpha")
+        for field, value in (
+            ("tenant_id", "beta"),
+            ("role", "liveness"),
+            ("model_fingerprint", "b" * 64),
+            ("state", "excluded"),
+        ):
+            with self.subTest(field=field):
+                with self.db.transaction() as db:
+                    sample = db.get(LearningSampleRow, "face-test-True-0")
+                    previous = getattr(sample, field)
+                    setattr(sample, field, value)
+                self.assertFalse(self.service.calibration("alpha", "face", self.engine).validated)
+                with self.db.transaction() as db:
+                    setattr(db.get(LearningSampleRow, "face-test-True-0"), field, previous)
+
     def test_unsupported_device_does_not_inherit_validated_policy(self):
         self.seed()
         self.service.run("alpha")
@@ -264,18 +352,82 @@ class LearningTests(unittest.TestCase):
         self.assertEqual(result["status"], "blocked", result)
         self.assertIn("no_measurable_improvement", result["failures"])
 
+    def test_validation_non_regression_rejects_unsafe_tradeoff_before_holdout(self):
+        self.service.gates = Gates(min_evaluation_per_class=2, max_false_accept_upper=0.99)
+        self.seed(count=2)
+        with self.db.transaction() as db:
+            sample = db.get(LearningSampleRow, "face-validation-False-0")
+            data = json.loads(self.store._decrypt(sample.payload))
+            sample.payload = self.store._encrypt(json.dumps({**data, "score": 0.4}))
+        incumbent = self.service.run("alpha")["face"]["policy_id"]
+        self.add_score("calibration", 0.7, "genuine", "new-calibration-low-genuine")
+        self.add_score("validation", 0.7, "genuine", "new-validation-low-genuine")
+        result = self.service.run("alpha")["face"]
+        self.assertEqual(result["status"], "blocked", result)
+        self.assertIn("validation:overall:regression:false_accept_rate", result["failures"])
+        with self.db.transaction() as db:
+            report = json.loads(
+                self.store._decrypt(db.get(CalibrationRow, result["policy_id"]).report)
+            )
+        self.assertFalse(report["holdout_used"])
+        self.assertNotIn("test", report)
+        self.assertEqual(self.service.calibration("alpha", "face", self.engine).version, incumbent)
+
+    def test_test_non_regression_preserves_incumbent_after_validation_improvement(self):
+        self.service.gates = Gates(min_evaluation_per_class=2, max_false_accept_upper=0.99)
+        self.seed(count=2)
+        with self.db.transaction() as db:
+            sample = db.get(LearningSampleRow, "face-test-False-0")
+            data = json.loads(self.store._decrypt(sample.payload))
+            sample.payload = self.store._encrypt(json.dumps({**data, "score": 0.4}))
+        incumbent = self.service.run("alpha")["face"]["policy_id"]
+        self.add_score("calibration", 0.7, "genuine", "new-calibration-low-genuine")
+        self.add_score("validation", 0.7, "genuine", "new-validation-low-genuine")
+        result = self.service.run("alpha")["face"]
+        self.assertEqual(result["status"], "blocked", result)
+        self.assertIn("test:overall:regression:false_accept_rate", result["failures"])
+        with self.db.transaction() as db:
+            report = json.loads(
+                self.store._decrypt(db.get(CalibrationRow, result["policy_id"]).report)
+            )
+        self.assertTrue(report["holdout_used"])
+        self.assertEqual(self.service.calibration("alpha", "face", self.engine).version, incumbent)
+
     def test_holdout_budget_cannot_be_reset_with_new_samples(self):
-        self.seed()
+        self.seed(bad_test=True)
         self.service.gates = Gates(max_attempts_per_test_panel=1)
         self.service.run("alpha")
+        with self.db.transaction() as db:
+            sample = db.get(LearningSampleRow, "face-calibration-True-0")
+            data = json.loads(self.store._decrypt(sample.payload))
+            db.add(
+                LearningSampleRow(
+                    sample_id="later-calibration-example",
+                    tenant_id="alpha",
+                    session_id="extra-session",
+                    role="face",
+                    model_fingerprint=self.engine.fingerprint,
+                    subject_hash="new-subject",
+                    split="calibration",
+                    state="labelled",
+                    payload=self.store._encrypt(json.dumps({**data, "pair": "new-subject"})),
+                    created_at=1000,
+                    retain_until=sample.retain_until,
+                )
+            )
+        self.assertEqual(self.service.run("alpha")["face"]["status"], "holdout_budget_exhausted")
+
+    def test_unused_test_sample_neither_retests_nor_revokes_policy(self):
+        self.seed()
+        policy_id = self.service.run("alpha")["face"]["policy_id"]
         with self.db.transaction() as db:
             sample = db.get(LearningSampleRow, "face-test-True-0")
             data = json.loads(self.store._decrypt(sample.payload))
             db.add(
                 LearningSampleRow(
-                    sample_id="later-test-example",
+                    sample_id="later-unused-test",
                     tenant_id="alpha",
-                    session_id="extra-session",
+                    session_id="unused-session",
                     role="face",
                     model_fingerprint=self.engine.fingerprint,
                     subject_hash="new-subject",
@@ -286,10 +438,134 @@ class LearningTests(unittest.TestCase):
                     retain_until=sample.retain_until,
                 )
             )
-        self.assertEqual(self.service.run("alpha")["face"]["status"], "holdout_budget_exhausted")
+        self.assertEqual(self.service.run("alpha")["face"]["status"], "unchanged")
+        with self.db.transaction() as db:
+            used = set(
+                db.scalars(
+                    select(CalibrationMemberRow.sample_id).where(
+                        CalibrationMemberRow.policy_id == policy_id
+                    )
+                )
+            )
+            self.assertNotIn("later-unused-test", used)
+            from muth.learning import erase_samples
+
+            erase_samples(db, ["unused-session"])
+        self.assertTrue(self.service.calibration("alpha", "face", self.engine).validated)
+
+    def test_validation_failure_does_not_inspect_holdout_or_consume_budget(self):
+        self.seed()
+        self.service.gates = Gates(max_attempts_per_test_panel=1)
+        with self.db.transaction() as db:
+            for sample in db.scalars(
+                select(LearningSampleRow).where(LearningSampleRow.split == "validation")
+            ):
+                data = json.loads(self.store._decrypt(sample.payload))
+                if data["label"] == "impostor":
+                    data["score"] = 0.95
+                    sample.payload = self.store._encrypt(json.dumps(data))
+        blocked = self.service.run("alpha")["face"]
+        self.assertEqual(blocked["status"], "blocked", blocked)
+        with self.db.transaction() as db:
+            policy = db.get(CalibrationRow, blocked["policy_id"])
+            report = json.loads(self.store._decrypt(policy.report))
+            self.assertFalse(report["holdout_used"])
+            self.assertNotIn("test", report)
+            self.assertEqual(policy.test_panel_hash, "")
+            used = set(
+                db.scalars(
+                    select(CalibrationMemberRow.sample_id).where(
+                        CalibrationMemberRow.policy_id == policy.policy_id
+                    )
+                )
+            )
+            self.assertTrue(all("-test-" not in sample_id for sample_id in used))
+            # Withdraw failed validation observations; add independently reviewed replacements.
+            for sample in db.scalars(
+                select(LearningSampleRow).where(LearningSampleRow.split == "validation")
+            ):
+                data = json.loads(self.store._decrypt(sample.payload))
+                if data["label"] == "impostor":
+                    sample.retain_until = self.store.clock() - 1
+                    db.add(
+                        LearningSampleRow(
+                            sample_id=f"replacement-{sample.sample_id}",
+                            tenant_id="alpha",
+                            session_id=f"replacement-{sample.sample_id}",
+                            role="face",
+                            model_fingerprint=self.engine.fingerprint,
+                            subject_hash=f"replacement-{sample.subject_hash}",
+                            split="validation",
+                            state="labelled",
+                            payload=self.store._encrypt(
+                                json.dumps(
+                                    {**data, "score": 0.1, "pair": f"replacement-{data['pair']}"}
+                                )
+                            ),
+                            created_at=1000,
+                            retain_until=self.store.clock() + 10000,
+                        )
+                    )
+        result = self.service.run("alpha")["face"]
+        self.assertEqual(result["status"], "promoted", result)
+
+    def test_invalid_gate_configuration_fails_closed(self):
+        for options in (
+            {"min_calibration_per_class": 0},
+            {"min_evaluation_per_class": True},
+            {"max_attempts_per_test_panel": 0},
+            {"max_false_accept_upper": float("nan")},
+            {"max_false_reject": 1},
+        ):
+            with self.subTest(options=options), self.assertRaises(ValueError):
+                Gates(**options)
 
 
 class PersistentPromotionTests(unittest.TestCase):
+    def test_promotion_racing_with_erasure_cannot_leave_erased_data_active(self):
+        with tempfile.TemporaryDirectory() as folder:
+            config = settings(
+                database_url=f"sqlite:///{folder}/muth.db",
+                data_key=SecretStr(Fernet.generate_key().decode()),
+            )
+            database = Database(config)
+            self.addCleanup(database.engine.dispose)
+            database.migrate()
+            self.db = database
+            self.store = SessionStore(database, config)
+            self.engine = SimpleNamespace(fingerprint="a" * 64, calibration=Calibration(0.8))
+            runtime = SimpleNamespace(face=self.engine, liveness=self.engine)
+            learner = LearningService(self.store, runtime)
+            LearningTests.seed(self)
+            other_db = Database(config)
+            self.addCleanup(other_db.engine.dispose)
+            other = LearningService(SessionStore(other_db, config), runtime)
+            barrier = threading.Barrier(2)
+
+            def refine():
+                barrier.wait(timeout=5)
+                return learner.run("alpha")["face"]["status"]
+
+            def erase():
+                from muth.learning import erase_samples
+
+                barrier.wait(timeout=5)
+                with other_db.transaction() as db:
+                    db.execute(text("BEGIN IMMEDIATE"))
+                    erase_samples(db, ["face-calibration-True-0"])
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                promoted = executor.submit(refine)
+                erased = executor.submit(erase)
+                self.assertIn(promoted.result(timeout=10), {"promoted", "collecting"})
+                erased.result(timeout=10)
+            self.assertFalse(other.calibration("alpha", "face", self.engine).validated)
+            with other_db.transaction() as db:
+                self.assertIsNone(db.get(LearningSampleRow, "face-calibration-True-0"))
+                self.assertTrue(
+                    all(p.state == "revoked" for p in db.scalars(select(CalibrationRow)))
+                )
+
     def test_two_connections_promote_a_snapshot_only_once(self):
         with tempfile.TemporaryDirectory() as folder:
             config = settings(

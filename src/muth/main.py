@@ -9,6 +9,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.exceptions import HTTPException
 
 from muth.api import router
+from muth.capacity import InferenceCapacity
 from muth.config import Settings
 from muth.engines.biometric import BiometricRuntime
 from muth.engines.bundle import EngineBundle
@@ -51,7 +52,7 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
 
     app = FastAPI(
         title="MUTH API",
-        version="0.3.0",
+        version="0.4.0",
         lifespan=lifespan,
         description=(
             "Infraestrutura africana de identidade digital. Sessões B2B com consentimento, "
@@ -72,7 +73,13 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
     )
     app.state.limiter = RateLimiter(settings.rate_limit_per_minute)
     app.state.metrics = Metrics()
-    app.add_middleware(PlatformMiddleware, settings=settings, metrics=app.state.metrics)
+    app.state.capacity = InferenceCapacity(settings.max_inference_requests, app.state.metrics)
+    app.add_middleware(
+        PlatformMiddleware,
+        settings=settings,
+        metrics=app.state.metrics,
+        capacity=app.state.capacity,
+    )
     app.include_router(router)
 
     @app.exception_handler(MuthError)
@@ -109,7 +116,7 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
 
     @app.get("/health", tags=["Sistema"])
     def health() -> dict[str, str]:
-        return {"status": "ok", "service": "muth", "version": "0.3.0"}
+        return {"status": "ok", "service": "muth", "version": "0.4.0"}
 
     @app.get("/health/ready", tags=["Sistema"])
     def ready() -> JSONResponse:

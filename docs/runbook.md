@@ -60,8 +60,11 @@ Um erro do motor liberta a sessão para retry. Uma interrupção abrupta deixa u
 lease; após `MUTH_PROCESSING_LEASE_SECONDS`, reenviar a mesma captura com a mesma
 chave recupera a tentativa, desde que a captura não tenha expirado. Se expirou,
 criar nova sessão. Respostas de tentativas antigas não podem finalizar a sessão.
-O lease não cancela a inferência antiga: medir duração e configurar recursos antes
-de activar modelos pesados. P2 deve introduzir workers e cancelamento/timeouts duráveis.
+Cancelamento HTTP liberta a claim mesmo se ocorrer durante a aquisição. O worker
+nativo conserva a capacidade até terminar; seu token deixa de poder finalizar uma
+tentativa futura. Encerramento abrupto conserva a recuperação por lease. Medir
+duração e configurar recursos antes de activar modelos pesados. P2 deve introduzir
+workers e cancelamento/timeouts duráveis.
 
 ## Observabilidade e rede
 
@@ -69,21 +72,28 @@ de activar modelos pesados. P2 deve introduzir workers e cancelamento/timeouts d
 scope `metrics`. Os labels usam rotas templated e não incluem tenant, sessão ou pessoa.
 Erros incluem request ID; logs de falhas de motor incluem apenas ID e tipo da excepção.
 
-Limites de corpo da aplicação são por pedido. O buffer é limitado mas ocupa memória;
-o proxy deve limitar concorrência, tamanho, taxa e tempo de transporte. HTTPS,
+`MUTH_MAX_INFERENCE_REQUESTS=2` limita uploads biométricos e workers reais por
+processo. Decodificação e inferência que sobrevivem ao cancelamento continuam
+contadas. Capacidade ocupada dá 429/Retry-After 1; o rate limit dá Retry-After 60.
+`MUTH_MAX_CONTROL_REQUEST_BYTES=65536` limita controlos, health e rotas desconhecidas.
+O buffer é limitado mas ocupa memória; múltiplos processos multiplicam limites e
+modelos. O proxy deve limitar ligações, tamanho, taxa e tempo de transporte. HTTPS,
 secret manager, limites distribuídos e monitoring são requisitos da infraestrutura
 do piloto. Multipart pode usar temporários: avaliar tmpfs e cifragem do disco.
 
 ## Docker e CI
 
-Dockerfile não-root e CI são configurações de referência. Não foram executados
-remotamente nesta iteração. O container recebe variáveis por configuração externa;
+Dockerfile não-root e CI são configurações de referência. Não houve deploy nem
+build de container. O GitHub Actions recusou iniciar os jobs por bloqueio de
+facturação da conta; os testes locais estão registados em implementation-status.md.
+O container recebe variáveis por configuração externa;
 a `.env` é excluída do build. Aplicar migrações em job separado antes de servir.
 O volume `/app/data` deve permitir escrita pelo UID 10001. Não copiar segredos para
 a imagem. Validar a imagem e fixar digests de base/actions antes do deploy comercial.
 
 ## Limites de produção
 
-Sem motores reais, PAD/IAD validado, captura vinculada à sessão, cobertura de BI,
+Face/Liveness têm inferência CPU real; faltam PAD/IAD validado localmente, captura
+vinculada à sessão, cobertura de BI,
 revisão com evidências, auditoria independente ou alta disponibilidade. Consultar
 os gates P1/P2 do SDD antes de tratar decisões como verificações reais.

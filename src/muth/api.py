@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Annotated, Literal
 
@@ -50,6 +51,24 @@ def current_service(request, principal, device_group="unknown"):
     )
 
 
+def invoke_engine(request, operation, *args):
+    # The worker retains capacity even if its HTTP task is cancelled before completion.
+    with request.app.state.capacity.worker():
+        try:
+            return operation(*args)
+        except MuthError:
+            raise
+        except Exception as exc:
+            logger.warning(
+                "engine_failure request_id=%s exception_type=%s",
+                request.state.request_id,
+                type(exc).__name__,
+            )
+            raise MuthError(
+                503, "engine_failure", "Não foi possível concluir a inferência."
+            ) from exc
+
+
 def require_database(request: Request) -> None:
     if not request.app.state.database.ready():
         raise MuthError(503, "database_not_ready", "Execute a migração da base de dados.")
@@ -86,26 +105,65 @@ async def verify_session(
     store = request.app.state.store
     session_view = await run_in_threadpool(store.get, principal, session_id)
     settings = request.app.state.settings
-    document_image = await read_image(document, settings)
-    selfie_image = await read_image(selfie, settings)
+    document_image = await read_image(document, settings, capacity=request.app.state.capacity)
+    selfie_image = await read_image(selfie, settings, capacity=request.app.state.capacity)
     fingerprint = await run_in_threadpool(
         store.fingerprint, principal, session_id, document_image, selfie_image
     )
-    claim = await run_in_threadpool(
-        store.claim, principal, session_id, idempotency_key, fingerprint, request.state.request_id
+    # Preserve the claim result even if HTTP cancellation arrives while SQLite
+    # is still granting it. Otherwise its attempt token would be lost to cleanup.
+    claim_task = asyncio.create_task(
+        run_in_threadpool(
+            store.claim,
+            principal,
+            session_id,
+            idempotency_key,
+            fingerprint,
+            request.state.request_id,
+        )
     )
-    if claim.replay is not None:
-        return claim.replay
+    claim = None
     try:
+        claim = await asyncio.shield(claim_task)
+        if claim.replay is not None:
+            return claim.replay
         service = await run_in_threadpool(
             current_service, request, principal, session_view.device_group
         )
-        result = await run_in_threadpool(service.verify, document_image, selfie_image)
+        result = await run_in_threadpool(
+            invoke_engine, request, service.verify, document_image, selfie_image
+        )
         await run_in_threadpool(
             store.complete, principal, session_id, claim.attempt, result, request.state.request_id
         )
         return result
+    except asyncio.CancelledError:
+
+        async def release_cancelled_claim():
+            try:
+                completed_claim = await claim_task
+                if completed_claim.replay is None:
+                    await run_in_threadpool(
+                        store.release,
+                        principal,
+                        session_id,
+                        completed_claim.attempt,
+                        request.state.request_id,
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "claim_cleanup_failed request_id=%s exception_type=%s",
+                    request.state.request_id,
+                    type(exc).__name__,
+                )
+
+        # Native inference may continue; its worker still occupies capacity.
+        # Releasing the token prevents its result from finalizing a later attempt.
+        await asyncio.shield(release_cancelled_claim())
+        raise
     except Exception as exc:
+        if claim is None:
+            raise
         await run_in_threadpool(
             store.release, principal, session_id, claim.attempt, request.state.request_id
         )
@@ -206,10 +264,12 @@ async def verify(
     request: Request, principal: PrincipalDep, document: ImageFile, selfie: ImageFile
 ) -> Verification:
     settings = request.app.state.settings
-    document_image = await read_image(document, settings)
-    selfie_image = await read_image(selfie, settings)
+    document_image = await read_image(document, settings, capacity=request.app.state.capacity)
+    selfie_image = await read_image(selfie, settings, capacity=request.app.state.capacity)
     service = await run_in_threadpool(current_service, request, principal)
-    return await run_in_threadpool(service.verify, document_image, selfie_image)
+    return await run_in_threadpool(
+        invoke_engine, request, service.verify, document_image, selfie_image
+    )
 
 
 @engines.post("/faces/compare", response_model=Check, tags=["MUTH Face"])
@@ -217,23 +277,31 @@ async def compare(
     request: Request, principal: PrincipalDep, reference: ImageFile, selfie: ImageFile
 ) -> Check:
     settings = request.app.state.settings
-    reference_image = await read_image(reference, settings)
-    selfie_image = await read_image(selfie, settings)
+    reference_image = await read_image(reference, settings, capacity=request.app.state.capacity)
+    selfie_image = await read_image(selfie, settings, capacity=request.app.state.capacity)
     bundle = await run_in_threadpool(current_engines, request, principal)
-    return await run_in_threadpool(bundle.face.compare, reference_image, selfie_image)
+    return await run_in_threadpool(
+        invoke_engine, request, bundle.face.compare, reference_image, selfie_image
+    )
 
 
 @engines.post("/liveness", response_model=Check, tags=["MUTH Liveness"])
 async def liveness(request: Request, principal: PrincipalDep, selfie: ImageFile) -> Check:
-    image = await read_image(selfie, request.app.state.settings)
+    image = await read_image(
+        selfie, request.app.state.settings, capacity=request.app.state.capacity
+    )
     bundle = await run_in_threadpool(current_engines, request, principal)
-    return await run_in_threadpool(bundle.liveness.assess, image)
+    return await run_in_threadpool(invoke_engine, request, bundle.liveness.assess, image)
 
 
 @engines.post("/documents/analyze", response_model=DocumentCheck, tags=["MUTH ID"])
 async def analyze(request: Request, document: ImageFile) -> DocumentCheck:
-    image = await read_image(document, request.app.state.settings)
-    analysis = await run_in_threadpool(request.app.state.engines.document.analyze, image)
+    image = await read_image(
+        document, request.app.state.settings, capacity=request.app.state.capacity
+    )
+    analysis = await run_in_threadpool(
+        invoke_engine, request, request.app.state.engines.document.analyze, image
+    )
     return analysis.check
 
 

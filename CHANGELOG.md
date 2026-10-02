@@ -1,5 +1,21 @@
 # Alterações
 
+## 0.4.0
+
+Qualidade facial geométrica/exposição, contratos de inferência no arranque e
+carregamento OpenCV a partir dos bytes verificados. Admissão antes de uploads,
+workers limitados mesmo após cancelamento, cleanup de claims e correcção das
+transacções SQLite/readiness. Aprendizagem consulta holdout apenas após validação,
+deduplica PAD pela pessoa capturada e conserva membros efectivamente consultados.
+Benchmark CPU por imagens com splits, denominadores, abstentions e pior PAI.
+
+**Compatibilidade:** fingerprint inclui preprocessing v2 e versões de runtime;
+políticas anteriores deixam de aplicar-se e a baseline fica inconclusiva até
+nova calibração validada. Schema permanece `0002_learning`. Novos parâmetros
+`MUTH_MAX_INFERENCE_REQUESTS` (2) e `MUTH_MAX_CONTROL_REQUEST_BYTES` (64 KiB).
+Pedidos ocupados recebem 429/Retry-After 1; campos JSON/controlos têm limite menor.
+Benchmark offline exige paths locais POSIX e não promove políticas.
+
 ## 0.3.0
 
 YuNet/SFace e MiniFASNetV2/V1SE locais em CPU, quality gates, fingerprints e

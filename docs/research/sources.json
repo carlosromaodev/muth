@@ -1,7 +1,7 @@
 {
   "consulted_on": "2026-10-02",
   "timezone": "Africa/Luanda",
-  "method": "Public GitHub repository search, metadata/README reads, and official provider documentation.",
+  "method": "Public GitHub repository search, metadata/README reads, and official provider documentation. v0.4: pinned quality/evaluation/runtime references reviewed for backend refinement.",
   "repositories": [
     {
       "repository": "Arg0s1080/mrz",
@@ -146,11 +146,13 @@
     {
       "repository": "microsoft/onnxruntime",
       "url": "https://github.com/microsoft/onnxruntime",
-      "commit_sha": null,
+      "commit_sha": "27f3d47e38cd949539662415f3791cf9ed751cbd",
       "default_branch": "main",
       "archived": false,
       "license_spdx_observed": "MIT",
-      "metadata_url": "https://api.github.com/repos/microsoft/onnxruntime"
+      "metadata_url": "https://api.github.com/repos/microsoft/onnxruntime",
+      "license_url": "https://github.com/microsoft/onnxruntime/blob/27f3d47e38cd949539662415f3791cf9ed751cbd/LICENSE",
+      "decision_v04": "existing_runtime_threading_reference"
     },
     {
       "repository": "smileidentity/smileid-sdk-python",
@@ -168,6 +170,38 @@
       "default_branch": "main",
       "license_spdx_observed": "Model directories: YuNet MIT; SFace Apache-2.0",
       "readme_url": "https://github.com/opencv/opencv_zoo/blob/47534e27c9851bb1128ccc0102f1145e27f23f98/README.md"
+    },
+    {
+      "repository": "BSI-OFIQ/OFIQ-Project",
+      "url": "https://github.com/BSI-OFIQ/OFIQ-Project",
+      "commit_sha": "d9beef8220c3829661d11e2aa3a96aef9a94a5f3",
+      "license_spdx_observed": "MIT (code; model/data terms separate)",
+      "license_url": "https://github.com/BSI-OFIQ/OFIQ-Project/blob/d9beef8220c3829661d11e2aa3a96aef9a94a5f3/LICENSE.md",
+      "decision_v04": "quality_reference_only"
+    },
+    {
+      "repository": "bioidiap/bob.measure",
+      "url": "https://github.com/bioidiap/bob.measure",
+      "commit_sha": "b58fe757fcf59d4b1c24f3bcba1f4117a98d77ca",
+      "license_spdx_observed": "BSD-3-Clause",
+      "license_url": "https://github.com/bioidiap/bob.measure/blob/b58fe757fcf59d4b1c24f3bcba1f4117a98d77ca/LICENSE",
+      "decision_v04": "evaluation_methodology_only"
+    },
+    {
+      "repository": "bioidiap/bob.pad.base",
+      "url": "https://github.com/bioidiap/bob.pad.base",
+      "commit_sha": "5ca1b84b35545433e2a3853bf5a70bce4ed25061",
+      "license_spdx_observed": "GPL-3.0",
+      "license_url": "https://github.com/bioidiap/bob.pad.base/blob/5ca1b84b35545433e2a3853bf5a70bce4ed25061/COPYING",
+      "decision_v04": "protocol_reference_only_no_code_copied"
+    },
+    {
+      "repository": "usnistgov/frvt",
+      "url": "https://github.com/usnistgov/frvt",
+      "commit_sha": "18c2f84d80c0636cede6ff1db0479fe068aedac4",
+      "license_spdx_observed": "US public domain; international attribution per LICENSE",
+      "license_url": "https://github.com/usnistgov/frvt/blob/18c2f84d80c0636cede6ff1db0479fe068aedac4/LICENSE.md",
+      "decision_v04": "protocol_reference_only_no_nist_certification"
     }
   ],
   "official_sources": [
@@ -233,8 +267,12 @@
   "limits": [
     "No independent vendor performance evaluation.",
     "No price or Angola-document coverage verification.",
-    "No model weights downloaded."
+    "Initial market research did not download weights; subsequent explicit research bundles and smoke sources are recorded in biometric-artifacts.json."
   ],
   "biometric_artifacts": "biometric-artifacts.json",
-  "biometric_smoke": "biometric-smoke.json"
+  "biometric_smoke": "biometric-smoke.json",
+  "backend_refinement": "../backend-refinement.md",
+  "biometric_smoke_v04": "biometric-smoke-v04.json",
+  "biometric_benchmark_v04": "biometric-benchmark-v04.json",
+  "http_smoke_v04": "http-smoke-v04.json"
 }

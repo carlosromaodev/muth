@@ -1,0 +1,16 @@
+{
+  "service_version": "0.4.0",
+  "checks": [
+    "health_version",
+    "readiness",
+    "/v1/faces/compare",
+    "/v1/liveness",
+    "session_verify_replay",
+    "session_delete",
+    "capacity_metrics",
+    "control_body_bound"
+  ],
+  "passed": true,
+  "public_fixture_used_for_learning": false,
+  "identity_accuracy_evaluated": false
+}

@@ -1,11 +1,13 @@
 # MUTH — System Design Document
 
-Versão 1.1 · 2 de Outubro de 2026 · Fundação v0.2 e extensão biométrica v0.3.
+Versão 1.2 · 2 de Outubro de 2026 · Fundação v0.2 e extensão biométrica/backend v0.4.
 
 O desenho biométrico vigente está em [biometrics-SDD.md](biometrics-SDD.md).
-Esta extensão substitui as referências abaixo a motores ainda demo: v0.3 integra
+Esta extensão substitui as referências abaixo a motores ainda demo: v0.4 integra
 Face/Liveness reais e calibração supervisionada. OCR/Auth permanecem pendentes;
 não existe precisão local ou prontidão comercial comprovada.
+O [refinamento do backend](backend-refinement.md) define os requisitos adicionais
+de admissão, cancelamento, transacções, integridade e avaliação por imagem.
 
 ## 1. Objectivo e limites
 
