@@ -1,0 +1,7 @@
+split,label,score,latency_ms,group
+calibration,genuine,0.8,10,synthetic
+calibration,impostor,0.1,12,synthetic
+test,genuine,0.9,10,synthetic
+test,genuine,0.4,20,synthetic
+test,impostor,0.6,30,synthetic
+test,impostor,0.2,40,synthetic

@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "muth"
+version = "0.3.0"
+description = "Infraestrutura africana de identidade digital — base de desenvolvimento"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.34,<1",
+  "pydantic-settings>=2.7,<3",
+  "python-multipart>=0.0.20,<1",
+  "pillow>=11.1,<13",
+  "sqlalchemy>=2.0,<3",
+  "alembic>=1.14,<2",
+  "cryptography>=44,<49",
+  "prometheus-client>=0.21,<1",
+]
+
+[project.scripts]
+muth = "muth.cli:main"
+
+[project.optional-dependencies]
+biometrics = [
+  "numpy>=2.0,<3", "opencv-python-headless>=4.10,<5", "onnxruntime>=1.20,<2",
+]
+
+[dependency-groups]
+dev = ["httpx>=0.28,<1", "ruff>=0.11,<1"]
+export = ["torch>=2.6,<3", "onnx>=1.17,<2"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/muth"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/", "tests/", "docs/", "examples/", "scripts/", "vendor/", ".github/", "pyproject.toml",
+  "uv.lock", "README.md", "CHANGELOG.md", "Dockerfile", ".dockerignore",
+  ".env.example", ".gitignore",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

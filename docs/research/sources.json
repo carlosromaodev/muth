@@ -1,0 +1,240 @@
+{
+  "consulted_on": "2026-10-02",
+  "timezone": "Africa/Luanda",
+  "method": "Public GitHub repository search, metadata/README reads, and official provider documentation.",
+  "repositories": [
+    {
+      "repository": "Arg0s1080/mrz",
+      "url": "https://github.com/Arg0s1080/mrz",
+      "commit_sha": "c462e0c8ca72f0396b9d1d17062434cd1c32b76a",
+      "default_branch": "master",
+      "archived": false,
+      "license_spdx_observed": "GPL-3.0",
+      "metadata_url": "https://api.github.com/repos/Arg0s1080/mrz",
+      "readme_url": "https://github.com/Arg0s1080/mrz/blob/c462e0c8ca72f0396b9d1d17062434cd1c32b76a/README.md"
+    },
+    {
+      "repository": "PaddlePaddle/PaddleOCR",
+      "url": "https://github.com/PaddlePaddle/PaddleOCR",
+      "commit_sha": "dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf",
+      "default_branch": "main",
+      "archived": false,
+      "license_spdx_observed": "Apache-2.0",
+      "metadata_url": "https://api.github.com/repos/PaddlePaddle/PaddleOCR",
+      "readme_url": "https://github.com/PaddlePaddle/PaddleOCR/blob/dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf/README.md"
+    },
+    {
+      "repository": "deepinsight/insightface",
+      "url": "https://github.com/deepinsight/insightface",
+      "commit_sha": "1480e705287bc5d59f923b46c260ec6e3e4150f6",
+      "default_branch": "master",
+      "archived": false,
+      "license_spdx_observed": null,
+      "metadata_url": "https://api.github.com/repos/deepinsight/insightface",
+      "readme_url": "https://github.com/deepinsight/insightface/blob/1480e705287bc5d59f923b46c260ec6e3e4150f6/README.md"
+    },
+    {
+      "repository": "duo-labs/py_webauthn",
+      "url": "https://github.com/duo-labs/py_webauthn",
+      "commit_sha": "d72e0f53cb6684fdd2f178bae83aeab8bda64665",
+      "default_branch": "master",
+      "archived": false,
+      "license_spdx_observed": "BSD-3-Clause",
+      "metadata_url": "https://api.github.com/repos/duo-labs/py_webauthn",
+      "readme_url": "https://github.com/duo-labs/py_webauthn/blob/d72e0f53cb6684fdd2f178bae83aeab8bda64665/README.md"
+    },
+    {
+      "repository": "mindee/doctr",
+      "url": "https://github.com/mindee/doctr",
+      "commit_sha": "9ab2ea5b7edf2b41a7211e6bf0d1765b4bb0d10f",
+      "default_branch": "main",
+      "archived": false,
+      "license_spdx_observed": "Apache-2.0",
+      "metadata_url": "https://api.github.com/repos/mindee/doctr",
+      "readme_url": "https://github.com/mindee/doctr/blob/9ab2ea5b7edf2b41a7211e6bf0d1765b4bb0d10f/README.md"
+    },
+    {
+      "repository": "minivision-ai/Silent-Face-Anti-Spoofing",
+      "url": "https://github.com/minivision-ai/Silent-Face-Anti-Spoofing",
+      "commit_sha": "b6d5f04ad78778917853b25c778acef6d5626d15",
+      "default_branch": "master",
+      "archived": false,
+      "license_spdx_observed": "Apache-2.0",
+      "metadata_url": "https://api.github.com/repos/minivision-ai/Silent-Face-Anti-Spoofing",
+      "readme_url": "https://github.com/minivision-ai/Silent-Face-Anti-Spoofing/blob/b6d5f04ad78778917853b25c778acef6d5626d15/README.md"
+    },
+    {
+      "repository": "open-telemetry/opentelemetry-python",
+      "url": "https://github.com/open-telemetry/opentelemetry-python",
+      "commit_sha": "5e8083e845dc0b0225d8674240c556c879ce852f",
+      "default_branch": "main",
+      "archived": false,
+      "license_spdx_observed": "Apache-2.0",
+      "metadata_url": "https://api.github.com/repos/open-telemetry/opentelemetry-python",
+      "readme_url": "https://github.com/open-telemetry/opentelemetry-python/blob/5e8083e845dc0b0225d8674240c556c879ce852f/README.md"
+    },
+    {
+      "repository": "opencv/opencv",
+      "url": "https://github.com/opencv/opencv",
+      "commit_sha": "5c09038eb4435db4e71a13cfd5f9c476536b330c",
+      "default_branch": "5.x",
+      "archived": false,
+      "license_spdx_observed": "Apache-2.0",
+      "metadata_url": "https://api.github.com/repos/opencv/opencv",
+      "readme_url": "https://github.com/opencv/opencv/blob/5c09038eb4435db4e71a13cfd5f9c476536b330c/README.md"
+    },
+    {
+      "repository": "prometheus/client_python",
+      "url": "https://github.com/prometheus/client_python",
+      "commit_sha": "9cd073cb4dc6ee617eadf02dcdec94e0225eff0a",
+      "default_branch": "master",
+      "archived": false,
+      "license_spdx_observed": "Apache-2.0",
+      "metadata_url": "https://api.github.com/repos/prometheus/client_python",
+      "readme_url": "https://github.com/prometheus/client_python/blob/9cd073cb4dc6ee617eadf02dcdec94e0225eff0a/README.md"
+    },
+    {
+      "repository": "pyca/cryptography",
+      "url": "https://github.com/pyca/cryptography",
+      "commit_sha": "761117aa1662f5346bf51a68cbdadb404f18b1bf",
+      "default_branch": "main",
+      "archived": false,
+      "license_spdx_observed": "NOASSERTION",
+      "metadata_url": "https://api.github.com/repos/pyca/cryptography",
+      "readme_url": "https://github.com/pyca/cryptography/blob/761117aa1662f5346bf51a68cbdadb404f18b1bf/README.md"
+    },
+    {
+      "repository": "serengil/deepface",
+      "url": "https://github.com/serengil/deepface",
+      "commit_sha": "de5c9b82472e62e7041a797e26afb66f7088f47a",
+      "default_branch": "master",
+      "archived": false,
+      "license_spdx_observed": "MIT",
+      "metadata_url": "https://api.github.com/repos/serengil/deepface",
+      "readme_url": "https://github.com/serengil/deepface/blob/de5c9b82472e62e7041a797e26afb66f7088f47a/README.md"
+    },
+    {
+      "repository": "sqlalchemy/alembic",
+      "url": "https://github.com/sqlalchemy/alembic",
+      "commit_sha": "b42ebe1ff576e02b8bfc9ef1c3c3a5fd1ac41bf4",
+      "default_branch": "main",
+      "archived": false,
+      "license_spdx_observed": "MIT",
+      "metadata_url": "https://api.github.com/repos/sqlalchemy/alembic",
+      "readme_url": "https://github.com/sqlalchemy/alembic/blob/b42ebe1ff576e02b8bfc9ef1c3c3a5fd1ac41bf4/README.md"
+    },
+    {
+      "repository": "sqlalchemy/sqlalchemy",
+      "url": "https://github.com/sqlalchemy/sqlalchemy",
+      "commit_sha": "e8d9f495b637fa46de0fe324def2238a26617d43",
+      "default_branch": "main",
+      "archived": false,
+      "license_spdx_observed": "MIT",
+      "metadata_url": "https://api.github.com/repos/sqlalchemy/sqlalchemy",
+      "readme_url": "https://github.com/sqlalchemy/sqlalchemy/blob/e8d9f495b637fa46de0fe324def2238a26617d43/README.md"
+    },
+    {
+      "repository": "temporalio/sdk-python",
+      "url": "https://github.com/temporalio/sdk-python",
+      "commit_sha": "d67e609b64374813b36eb4ed06f92ff73e49986a",
+      "default_branch": "main",
+      "archived": false,
+      "license_spdx_observed": "MIT",
+      "metadata_url": "https://api.github.com/repos/temporalio/sdk-python",
+      "readme_url": "https://github.com/temporalio/sdk-python/blob/d67e609b64374813b36eb4ed06f92ff73e49986a/README.md"
+    },
+    {
+      "repository": "microsoft/onnxruntime",
+      "url": "https://github.com/microsoft/onnxruntime",
+      "commit_sha": null,
+      "default_branch": "main",
+      "archived": false,
+      "license_spdx_observed": "MIT",
+      "metadata_url": "https://api.github.com/repos/microsoft/onnxruntime"
+    },
+    {
+      "repository": "smileidentity/smileid-sdk-python",
+      "url": "https://github.com/smileidentity/smileid-sdk-python",
+      "commit_sha": null,
+      "default_branch": "main",
+      "archived": false,
+      "license_spdx_observed": "MIT",
+      "metadata_url": "https://api.github.com/repos/smileidentity/smileid-sdk-python"
+    },
+    {
+      "repository": "opencv/opencv_zoo",
+      "url": "https://github.com/opencv/opencv_zoo",
+      "commit_sha": "47534e27c9851bb1128ccc0102f1145e27f23f98",
+      "default_branch": "main",
+      "license_spdx_observed": "Model directories: YuNet MIT; SFace Apache-2.0",
+      "readme_url": "https://github.com/opencv/opencv_zoo/blob/47534e27c9851bb1128ccc0102f1145e27f23f98/README.md"
+    }
+  ],
+  "official_sources": [
+    {
+      "name": "persona",
+      "url": "https://withpersona.com/product/identity-verification",
+      "http_status": 403,
+      "used_for_comparison": false
+    },
+    {
+      "name": "persona-docs",
+      "url": "https://docs.withpersona.com/inquiries",
+      "http_status": 200,
+      "used_for_comparison": true
+    },
+    {
+      "name": "veriff",
+      "url": "https://www.veriff.com/product/identity-verification",
+      "http_status": 200,
+      "used_for_comparison": true
+    },
+    {
+      "name": "jumio",
+      "url": "https://www.jumio.com/products/identity-verification/",
+      "http_status": 403,
+      "used_for_comparison": false
+    },
+    {
+      "name": "jumio-docs",
+      "url": "https://documentation.jumio.ai",
+      "http_status": 200,
+      "used_for_comparison": true
+    },
+    {
+      "name": "entrust",
+      "url": "https://www.entrust.com/products/identity-verification",
+      "http_status": 403,
+      "used_for_comparison": false
+    },
+    {
+      "name": "entrust-docs",
+      "url": "https://documentation.identity.entrust.com/",
+      "http_status": 200,
+      "used_for_comparison": true
+    },
+    {
+      "name": "sumsub",
+      "url": "https://sumsub.com/",
+      "http_status": 200,
+      "used_for_comparison": true
+    },
+    {
+      "name": "smileid",
+      "url": "https://smile.id/",
+      "http_status": 200,
+      "used_for_comparison": true
+    }
+  ],
+  "license_notes": {
+    "deepinsight/insightface": "README declares MIT for code and non-commercial research restrictions for distributed training data/models. Commercial weights require appropriate rights.",
+    "pyca/cryptography": "LICENSE permits either Apache-2.0 or BSD; SPDX NOASSERTION from GitHub is not an absence of licensing."
+  },
+  "limits": [
+    "No independent vendor performance evaluation.",
+    "No price or Angola-document coverage verification.",
+    "No model weights downloaded."
+  ],
+  "biometric_artifacts": "biometric-artifacts.json",
+  "biometric_smoke": "biometric-smoke.json"
+}

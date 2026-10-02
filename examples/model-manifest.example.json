@@ -1,0 +1,14 @@
+{
+  "model_id": "replace-with-reviewed-model",
+  "version": "replace-with-version",
+  "role": "face",
+  "permitted_use": "research",
+  "license_reference": "replace-with-specific-weight-license-reference",
+  "license_evidence_file": "license-review.txt",
+  "assets": [
+    {
+      "path": "model.onnx",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}

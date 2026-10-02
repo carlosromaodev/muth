@@ -1,0 +1,176 @@
+{
+  "purpose": "public_example_smoke_only",
+  "local_accuracy_measured": false,
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "samples": {
+    "T1": {
+      "self_comparison": {
+        "outcome": "inconclusive",
+        "reasons": [
+          "face_threshold_not_locally_calibrated"
+        ],
+        "provider": "opencv-sface",
+        "model_version": "sface-2021dec",
+        "score": 1.0,
+        "score_kind": "cosine_similarity",
+        "model_fingerprint": "fe7ce892e7a5a08f30059a7392d7a3870bd1404e1ac99e0f53fe370c2204bcfd",
+        "calibration_version": "uncalibrated-baseline",
+        "threshold": 0.363,
+        "diagnostics": {
+          "reference_face_width": 169.56629943847656,
+          "reference_face_height": 239.91351318359375,
+          "reference_sharpness": 317.3511893454607,
+          "reference_roll_degrees": 14.73164436341199,
+          "reference_detector_score": 0.9299156665802002,
+          "selfie_face_width": 169.56629943847656,
+          "selfie_face_height": 239.91351318359375,
+          "selfie_sharpness": 317.3511893454607,
+          "selfie_roll_degrees": 14.73164436341199,
+          "selfie_detector_score": 0.9299156665802002,
+          "latency_ms": 121.13051499909488
+        }
+      },
+      "liveness": {
+        "outcome": "inconclusive",
+        "reasons": [
+          "liveness_threshold_not_locally_calibrated",
+          "rgb_pad_does_not_prove_capture_freshness"
+        ],
+        "provider": "minifasnet-onnx",
+        "model_version": "minifas-v2-v1se",
+        "score": 0.9998787939548492,
+        "score_kind": "liveness_softmax",
+        "model_fingerprint": "4f2772ad51ddb3521ba8168f05dbe3bb4b0b0f9f4de0400cc2f40777d49dc2a5",
+        "calibration_version": "uncalibrated-baseline",
+        "threshold": 0.8,
+        "diagnostics": {
+          "face_width": 169.56629943847656,
+          "face_height": 239.91351318359375,
+          "sharpness": 317.3511893454607,
+          "roll_degrees": 14.73164436341199,
+          "detector_score": 0.9299156665802002,
+          "live_scale_2_7": 0.9997590184211731,
+          "live_scale_4_0": 0.9999985694885254,
+          "ensemble_disagreement": 0.00023955106735229492,
+          "latency_ms": 22.2477160004928
+        }
+      }
+    },
+    "F1": {
+      "self_comparison": {
+        "outcome": "inconclusive",
+        "reasons": [
+          "face_threshold_not_locally_calibrated"
+        ],
+        "provider": "opencv-sface",
+        "model_version": "sface-2021dec",
+        "score": 1.0,
+        "score_kind": "cosine_similarity",
+        "model_fingerprint": "fe7ce892e7a5a08f30059a7392d7a3870bd1404e1ac99e0f53fe370c2204bcfd",
+        "calibration_version": "uncalibrated-baseline",
+        "threshold": 0.363,
+        "diagnostics": {
+          "reference_face_width": 195.64817810058594,
+          "reference_face_height": 239.7953643798828,
+          "reference_sharpness": 71.19797819240773,
+          "reference_roll_degrees": 18.3836350290426,
+          "reference_detector_score": 0.9317545294761658,
+          "selfie_face_width": 195.64817810058594,
+          "selfie_face_height": 239.7953643798828,
+          "selfie_sharpness": 71.19797819240773,
+          "selfie_roll_degrees": 18.3836350290426,
+          "selfie_detector_score": 0.9317545294761658,
+          "latency_ms": 83.27626400023291
+        }
+      },
+      "liveness": {
+        "outcome": "inconclusive",
+        "reasons": [
+          "liveness_threshold_not_locally_calibrated",
+          "rgb_pad_does_not_prove_capture_freshness"
+        ],
+        "provider": "minifasnet-onnx",
+        "model_version": "minifas-v2-v1se",
+        "score": 0.22858070116490126,
+        "score_kind": "liveness_softmax",
+        "model_fingerprint": "4f2772ad51ddb3521ba8168f05dbe3bb4b0b0f9f4de0400cc2f40777d49dc2a5",
+        "calibration_version": "uncalibrated-baseline",
+        "threshold": 0.8,
+        "diagnostics": {
+          "face_width": 195.64817810058594,
+          "face_height": 239.7953643798828,
+          "sharpness": 71.19797819240773,
+          "roll_degrees": 18.3836350290426,
+          "detector_score": 0.9317545294761658,
+          "live_scale_2_7": 0.017971819266676903,
+          "live_scale_4_0": 0.4391895830631256,
+          "ensemble_disagreement": 0.4212177637964487,
+          "latency_ms": 21.762737998869852
+        }
+      }
+    },
+    "F2": {
+      "self_comparison": {
+        "outcome": "inconclusive",
+        "reasons": [
+          "face_threshold_not_locally_calibrated"
+        ],
+        "provider": "opencv-sface",
+        "model_version": "sface-2021dec",
+        "score": 0.9999999403953552,
+        "score_kind": "cosine_similarity",
+        "model_fingerprint": "fe7ce892e7a5a08f30059a7392d7a3870bd1404e1ac99e0f53fe370c2204bcfd",
+        "calibration_version": "uncalibrated-baseline",
+        "threshold": 0.363,
+        "diagnostics": {
+          "reference_face_width": 222.8537139892578,
+          "reference_face_height": 298.3085021972656,
+          "reference_sharpness": 141.17115590260568,
+          "reference_roll_degrees": 9.890076273842412,
+          "reference_detector_score": 0.9322898387908936,
+          "selfie_face_width": 222.8537139892578,
+          "selfie_face_height": 298.3085021972656,
+          "selfie_sharpness": 141.17115590260568,
+          "selfie_roll_degrees": 9.890076273842412,
+          "selfie_detector_score": 0.9322898387908936,
+          "latency_ms": 84.2131919998792
+        }
+      },
+      "liveness": {
+        "outcome": "inconclusive",
+        "reasons": [
+          "liveness_threshold_not_locally_calibrated",
+          "rgb_pad_does_not_prove_capture_freshness"
+        ],
+        "provider": "minifasnet-onnx",
+        "model_version": "minifas-v2-v1se",
+        "score": 0.0023435282055288553,
+        "score_kind": "liveness_softmax",
+        "model_fingerprint": "4f2772ad51ddb3521ba8168f05dbe3bb4b0b0f9f4de0400cc2f40777d49dc2a5",
+        "calibration_version": "uncalibrated-baseline",
+        "threshold": 0.8,
+        "diagnostics": {
+          "face_width": 222.8537139892578,
+          "face_height": 298.3085021972656,
+          "sharpness": 141.17115590260568,
+          "roll_degrees": 9.890076273842412,
+          "detector_score": 0.9322898387908936,
+          "live_scale_2_7": 0.0004876810126006603,
+          "live_scale_4_0": 0.00419937539845705,
+          "ensemble_disagreement": 0.00371169438585639,
+          "latency_ms": 25.144285000351374
+        }
+      }
+    }
+  },
+  "parity": {
+    "2.7_80x80_MiniFASNetV2.pth": {
+      "max_absolute_logit_error": 1.3113021850585938e-06,
+      "passed": true
+    },
+    "4_0_0_80x80_MiniFASNetV1SE.pth": {
+      "max_absolute_logit_error": 2.86102294921875e-06,
+      "passed": true
+    }
+  }
+}
