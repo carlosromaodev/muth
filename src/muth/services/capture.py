@@ -7,6 +7,7 @@ from io import BytesIO
 from PIL import Image, ImageFilter, ImageOps, ImageStat
 
 from muth.capture_models import CaptureChecks, CaptureScore, CaptureVerification
+from muth.document_image import prepare_document
 from muth.domain import Check, DocumentCheck, Outcome, VerificationStatus
 from muth.media import ImageInput
 from muth.ocr import TesseractDocumentEngine
@@ -37,6 +38,14 @@ def assess_document_quality(image: ImageInput, side: str) -> DocumentQuality:
     with Image.open(BytesIO(image.content)) as source:
         oriented = ImageOps.exif_transpose(source)
         width, height = oriented.size
+        transparent = False
+        if "A" in oriented.getbands() or "transparency" in oriented.info:
+            rgba = oriented.convert("RGBA")
+            transparent = rgba.getchannel("A").getextrema()[0] < 255
+            if transparent:
+                # Quality must describe visible pixels, including the document verso.
+                background = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+                oriented = Image.alpha_composite(background, rgba).convert("RGB")
         # The media layer has already fully decoded and bounded the input.
         oriented.thumbnail((1024, 1024))
         frame = oriented.convert("RGB")
@@ -56,6 +65,8 @@ def assess_document_quality(image: ImageInput, side: str) -> DocumentQuality:
 
     short, long = sorted((width, height))
     reasons = []
+    if transparent:
+        reasons.append(f"document_{side}_transparency_unsupported")
     if short < 320 or long < 480:
         reasons.append(f"document_{side}_resolution_insufficient")
     if max(dark, bright) > 0.95:
@@ -185,12 +196,18 @@ class CaptureService:
     def verify(
         self, document_front: ImageInput, document_back: ImageInput, selfie: ImageInput
     ) -> CaptureVerification:
-        front = assess_document_quality(document_front, "front")
-        back = assess_document_quality(document_back, "back")
+        front_region = prepare_document(document_front)
+        back_region = prepare_document(document_back)
+        front_image = (
+            front_region.as_image_input() if front_region.source_isolated else document_front
+        )
+        back_image = back_region.as_image_input() if back_region.source_isolated else document_back
+        front = assess_document_quality(front_image, "front")
+        back = assess_document_quality(back_image, "back")
         identical = (
             document_front.content == document_back.content or front.fingerprint == back.fingerprint
         )
-        verification = self.verify_service.verify(document_front, selfie)
+        verification = self.verify_service.verify(front_image, selfie)
         front_document = front_check(verification.checks.document, front)
         back_document = back_check(back, identical=identical)
         status = VerificationStatus.REVIEW
@@ -223,6 +240,8 @@ class CaptureService:
                 *verification.reasons,
                 *front.reasons,
                 *back_document.reasons,
+                *front_region.reasons,
+                *back_region.reasons,
                 "capture_rating_is_indicative",
             ],
             document_data=self.document_engine.extract(document_front, document_back),

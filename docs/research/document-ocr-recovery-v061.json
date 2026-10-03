@@ -1,0 +1,364 @@
+{
+  "version": "muth-document-ocr-recovery-v061",
+  "date": "2026-10-02",
+  "private_photographs_published": false,
+  "personal_values_included": false,
+  "population_accuracy_measured": false,
+  "document_authenticity_confirmed": false,
+  "recovery_gate_passed": true,
+  "orientation_gate_passed": false,
+  "ocr": {
+    "scope": "private_single_document_regression",
+    "ocr_languages": "por+eng",
+    "ocr_version": "5.5.0",
+    "cases": [
+      {
+        "variant": "original",
+        "status": "extracted",
+        "expected_fields": 8,
+        "matched_fields": 8,
+        "field_matches": {
+          "name": true,
+          "document_number": true,
+          "birth_date": true,
+          "expiry_date": true,
+          "sex": true,
+          "father_name": true,
+          "mother_name": true,
+          "parentage": true
+        },
+        "unprinted_fields_not_inferred": {
+          "nationality": true
+        },
+        "extracted_field_count": 8,
+        "invalid_fields": [],
+        "conflict_count": 0,
+        "elapsed_seconds": 5.091,
+        "processing_version": "muth-document-ocr-v3",
+        "passed": true
+      },
+      {
+        "variant": "web-jpeg",
+        "status": "extracted",
+        "expected_fields": 8,
+        "matched_fields": 8,
+        "field_matches": {
+          "name": true,
+          "document_number": true,
+          "birth_date": true,
+          "expiry_date": true,
+          "sex": true,
+          "father_name": true,
+          "mother_name": true,
+          "parentage": true
+        },
+        "unprinted_fields_not_inferred": {
+          "nationality": true
+        },
+        "extracted_field_count": 8,
+        "invalid_fields": [],
+        "conflict_count": 0,
+        "elapsed_seconds": 10.113,
+        "processing_version": "muth-document-ocr-v3",
+        "passed": true
+      },
+      {
+        "variant": "rotate-90",
+        "status": "extracted",
+        "expected_fields": 8,
+        "matched_fields": 4,
+        "field_matches": {
+          "name": false,
+          "document_number": true,
+          "birth_date": true,
+          "expiry_date": true,
+          "sex": true,
+          "father_name": false,
+          "mother_name": false,
+          "parentage": false
+        },
+        "unprinted_fields_not_inferred": {
+          "nationality": true
+        },
+        "extracted_field_count": 6,
+        "invalid_fields": [],
+        "conflict_count": 0,
+        "elapsed_seconds": 6.633,
+        "processing_version": "muth-document-ocr-v3",
+        "passed": false
+      },
+      {
+        "variant": "rotate-180",
+        "status": "partial",
+        "expected_fields": 8,
+        "matched_fields": 5,
+        "field_matches": {
+          "name": true,
+          "document_number": true,
+          "birth_date": false,
+          "expiry_date": false,
+          "sex": false,
+          "father_name": true,
+          "mother_name": true,
+          "parentage": true
+        },
+        "unprinted_fields_not_inferred": {
+          "nationality": true
+        },
+        "extracted_field_count": 5,
+        "invalid_fields": [],
+        "conflict_count": 0,
+        "elapsed_seconds": 12.015,
+        "processing_version": "muth-document-ocr-v3",
+        "passed": false
+      },
+      {
+        "variant": "rotate-270",
+        "status": "partial",
+        "expected_fields": 8,
+        "matched_fields": 3,
+        "field_matches": {
+          "name": true,
+          "document_number": false,
+          "birth_date": false,
+          "expiry_date": true,
+          "sex": true,
+          "father_name": false,
+          "mother_name": false,
+          "parentage": false
+        },
+        "unprinted_fields_not_inferred": {
+          "nationality": true
+        },
+        "extracted_field_count": 5,
+        "invalid_fields": [],
+        "conflict_count": 0,
+        "elapsed_seconds": 11.102,
+        "processing_version": "muth-document-ocr-v3",
+        "passed": false
+      }
+    ],
+    "passed": false,
+    "population_accuracy_measured": false,
+    "document_authenticity_confirmed": false,
+    "personal_values_included": false
+  },
+  "browser": {
+    "scope": "private_single_document_browser_regression",
+    "personal_values_included": false,
+    "population_accuracy_measured": false,
+    "document_authenticity_confirmed": false,
+    "fixture": "two_user_authorised_private_document_photographs",
+    "selfie": "public_upstream_image_for_demo_flow_only",
+    "engine_mode": "demo",
+    "browser": "Chromium",
+    "physical_mobile_camera_tested": false,
+    "viewports": [
+      [
+        390,
+        844
+      ],
+      [
+        320,
+        812
+      ],
+      [
+        1440,
+        1080
+      ]
+    ],
+    "expected_printed_fields": 8,
+    "matched_fields": 8,
+    "field_matches": {
+      "name": true,
+      "document_number": true,
+      "birth_date": true,
+      "expiry_date": true,
+      "sex": true,
+      "father_name": true,
+      "mother_name": true,
+      "parentage": true
+    },
+    "unprinted_nationality_not_inferred": true,
+    "demo_disclosed_before_capture": true,
+    "demo_score_unavailable": true,
+    "no_score_ceiling_shown_when_unavailable": true,
+    "review_shows_three_images": true,
+    "horizontal_overflow": false,
+    "browser_storage_items": 0,
+    "browser_errors": 0,
+    "axe": {
+      "violations": 0,
+      "passes": 24,
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "count": 8
+        }
+      ]
+    },
+    "passed": true
+  },
+  "synthetic_ui_review": {
+    "version": "muth-ui-0.6.1",
+    "fixture": "uniform synthetic 3200x2400 JPEG; fictitious OCR fields",
+    "private_images_used": false,
+    "real_verifications_sent": false,
+    "early_demo_notice_confirmed": true,
+    "page_errors": 0,
+    "console_errors": 0,
+    "browser_checks": {
+      "checks": [],
+      "receivedCaptures": [
+        {
+          "name": "document_front",
+          "size": 26185,
+          "type": "image/jpeg"
+        },
+        {
+          "name": "document_back",
+          "size": 26185,
+          "type": "image/jpeg"
+        },
+        {
+          "name": "selfie",
+          "size": 12010,
+          "type": "image/jpeg"
+        }
+      ],
+      "mockedRequests": 3,
+      "xssExecuted": false,
+      "documentDimensions": [
+        2400,
+        1800
+      ],
+      "mobile390": {
+        "width": 390,
+        "overflow": false,
+        "helpVisible": true,
+        "videoFit": "contain"
+      },
+      "mobile320": {
+        "width": 320,
+        "overflow": false,
+        "helpVisible": true,
+        "videoFit": "contain"
+      },
+      "selfieDimensions": [
+        1600,
+        1200
+      ],
+      "reviewExplicitDemo": true,
+      "result": {
+        "explicitDemo": true,
+        "noScore": true,
+        "ceilingHidden": true,
+        "expiryCorrectionEmpty": true,
+        "nameCorrectionEmpty": true,
+        "isoBirthPrefilled": true,
+        "invalidRows": 2,
+        "xssExecuted": false,
+        "injectedImages": 0,
+        "xssRenderedLiterally": true,
+        "overflow320": false,
+        "storage": [
+          0,
+          0
+        ],
+        "overflow390": false
+      },
+      "invalidCalendarDateBlocked": true,
+      "invalidDateFormatBlocked": true,
+      "correctionKeys": [
+        "expiry_date"
+      ],
+      "validCorrectionAccepted": true,
+      "readinessWarnings": {
+        "visible": true,
+        "count": 2,
+        "ocr": true,
+        "biometric": true,
+        "overflow": false
+      }
+    }
+  },
+  "limitations": [
+    "Single private BI only; no population accuracy estimate.",
+    "Rotated scenes at 90/180/270 degrees remain partial; recapture with readable horizontal card.",
+    "OCR text orientation recovery does not validate biometric orientation or presence.",
+    "Mobile browser layout tested with Chromium emulation; physical camera and user ngrok installation not accessed.",
+    "OCR fields do not confirm document authenticity."
+  ],
+  "https": {
+    "scope": "private_single_document_https_regression",
+    "checks": [
+      "health",
+      "backend_v061",
+      "readiness",
+      "real_biometrics_ready",
+      "ocr_portuguese_english",
+      "no_identity_certification",
+      "public_config",
+      "preprocessing_ready",
+      "setup_complete",
+      "mutations_reject_cross_origin",
+      "session_create",
+      "session_token_required",
+      "verification",
+      "eight_printed_fields_match",
+      "unprinted_nationality_not_inferred",
+      "ocr_v3",
+      "no_invalid_fields",
+      "no_conflicts",
+      "not_demo",
+      "indicative_score_ceiling",
+      "authenticity_not_claimed",
+      "no_learning_opt_in",
+      "no_identity_enrollment",
+      "idempotency_replay",
+      "same_result_on_replay",
+      "result_lookup",
+      "saved_result_matches",
+      "delete_session",
+      "deleted_result_unavailable"
+    ],
+    "personal_values_included": false,
+    "population_accuracy_measured": false,
+    "document_authenticity_confirmed": false,
+    "executed_at": "2026-10-02T22:03:23.247556+00:00",
+    "field_matches": {
+      "name": true,
+      "document_number": true,
+      "birth_date": true,
+      "expiry_date": true,
+      "sex": true,
+      "father_name": true,
+      "mother_name": true,
+      "parentage": true
+    },
+    "matched_fields": 8,
+    "passed": true
+  },
+  "software_validation": {
+    "full_cpu": {
+      "tests": 316,
+      "passed": true,
+      "skipped": 0,
+      "elapsed_seconds": 59.896
+    },
+    "base_wheel": {
+      "tests": 316,
+      "passed": true,
+      "skipped": 7,
+      "elapsed_seconds": 31.396
+    },
+    "lint": true,
+    "format": true,
+    "javascript_syntax": true,
+    "wheel_sdist_built": true,
+    "container_built": true,
+    "activation_validated_against_real_models": true,
+    "github_actions_passed": false,
+    "github_actions_last_known_block": "account_billing_lock"
+  }
+}

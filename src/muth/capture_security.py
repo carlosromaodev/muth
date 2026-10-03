@@ -104,7 +104,10 @@ async def authorize_capture(request: Request) -> None:
             or (
                 len(parts) == 5
                 and (
-                    (parts[4] in {"verify", "document-corrections"} and method == "POST")
+                    (
+                        parts[4] in {"verify", "document-corrections", "camera-assessment"}
+                        and method == "POST"
+                    )
                     or (parts[4] == "learning-consent" and method == "DELETE")
                 )
             )
@@ -118,7 +121,19 @@ async def authorize_capture(request: Request) -> None:
         raise MuthError(503, "capture_unavailable", "A captura está temporariamente indisponível.")
     check_capture_origin(request)
     address = request.client.host if request.client else "unknown"
-    request.app.state.capture_limiter.check(address)
+    camera = session_route and len(parts) == 5 and parts[4] == "camera-assessment"
+    if camera and not settings.live_camera_enabled:
+        raise MuthError(503, "live_camera_disabled", "A detecção ao vivo está indisponível.")
+    if camera and (
+        request.query_params.getlist("target")
+        not in [["document_front"], ["document_back"], ["selfie"]]
+    ):
+        raise MuthError(422, "camera_target_invalid", "Escolha frente, verso ou rosto.")
+    if camera and (
+        request.headers.get("content-type", "").split(";", 1)[0].strip() != "multipart/form-data"
+    ):
+        raise MuthError(415, "camera_multipart_required", "Envie uma imagem de pré-visualização.")
+    request.app.state.capture_limiter.check(address, camera=camera)
     if create:
         if request.headers.get("content-type", "").split(";", 1)[0].strip() != "application/json":
             raise MuthError(415, "capture_json_required", "O consentimento exige JSON.")
@@ -142,11 +157,22 @@ async def authorize_capture(request: Request) -> None:
                 if (
                     method == "POST"
                     and len(parts) == 5
-                    and parts[4] == "verify"
+                    and parts[4] in {"verify", "camera-assessment"}
                     and session.expires_at.timestamp() <= request.app.state.store.clock()
                 ):
                     raise MuthError(
                         410, "session_expired", "O prazo da captura terminou. Recomece."
+                    )
+                if camera and session.status != "awaiting_capture":
+                    raise MuthError(
+                        409, "camera_session_inactive", "A sessão já não aceita capturas ao vivo."
+                    )
+                if camera and (
+                    not session.consent.camera_frames_opt_in
+                    or session.consent.camera_policy_version != settings.live_camera_policy_version
+                ):
+                    raise MuthError(
+                        403, "camera_consent_required", "Autorize a análise ao vivo desta sessão."
                     )
 
         await run_in_threadpool(ready_and_visible)
@@ -160,11 +186,13 @@ class CaptureRateLimiter:
         self.windows: dict[str, tuple[int, int]] = {}
         self.lock = threading.Lock()
 
-    def check(self, address: str, *, creation: bool = False):
+    def check(self, address: str, *, creation: bool = False, camera: bool = False):
         digest = hmac.digest(self.key, address.encode(), "sha256").hex()
-        lane = "create" if creation else "request"
+        lane = "camera" if camera else "create" if creation else "request"
         limit = (
-            self.settings.capture_creation_limit_per_minute
+            self.settings.live_camera_rate_limit_per_minute
+            if camera
+            else self.settings.capture_creation_limit_per_minute
             if creation
             else self.settings.capture_rate_limit_per_minute
         )

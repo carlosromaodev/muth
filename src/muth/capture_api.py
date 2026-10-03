@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import time
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, Request, Response
@@ -13,8 +14,10 @@ from muth.api import current_service, invoke_engine
 from muth.capture_learning import CaptureDocumentCorrections
 from muth.capture_models import CaptureVerification
 from muth.capture_security import capture_fingerprint
+from muth.document_image import geometry_available
 from muth.domain import Consent, CreateSession
 from muth.errors import MuthError
+from muth.live_camera import CameraAssessment, CameraTarget, assess_camera
 from muth.media import read_image
 from muth.security import Principal
 from muth.services.capture import CaptureService
@@ -26,6 +29,8 @@ router = APIRouter(prefix="/capture-api", tags=["Captura web"])
 class BrowserConsent(BaseModel):
     model_config = {"extra": "forbid"}
     accepted: bool = Field(strict=True)
+    camera_frames_opt_in: bool = Field(default=False, strict=True)
+    camera_policy_version: str | None = Field(default=None, min_length=1, max_length=80)
     purpose: Literal["onboarding"]
     policy_version: str = Field(min_length=1, max_length=80)
     learning_opt_in: bool = Field(default=False, strict=True)
@@ -45,9 +50,24 @@ class BrowserSessionRequest(BaseModel):
 @router.get("/config")
 def config(request: Request):
     settings = request.app.state.settings
+    ocr = request.app.state.document_ocr
+    inference_ready = request.app.state.runtime is not None
+    ocr_ready = bool(getattr(ocr, "executable", None))
     return {
         "enabled": settings.capture_portal_enabled and settings.engine_mode != "disabled",
         "mode": settings.engine_mode,
+        "biometric_inference_ready": inference_ready,
+        "document_ocr_ready": ocr_ready,
+        "document_ocr_languages": getattr(ocr, "languages", "") or None,
+        "document_preprocessing_ready": geometry_available(),
+        "live_camera_enabled": settings.live_camera_enabled,
+        "live_camera_policy_version": settings.live_camera_policy_version,
+        "live_camera_interval_ms": settings.live_camera_interval_ms,
+        "live_document_detector_ready": settings.live_camera_enabled and geometry_available(),
+        "live_face_detector_ready": settings.live_camera_enabled and inference_ready,
+        "live_camera_max_frame_bytes": settings.live_camera_max_frame_bytes,
+        "live_camera_max_frame_dimension": settings.live_camera_max_frame_dimension,
+        "setup_required": settings.engine_mode == "demo" or not ocr_ready,
         "privacy_policy_version": settings.capture_policy_version,
         "max_upload_bytes": settings.max_upload_bytes,
         "max_request_bytes": settings.capture_max_request_bytes,
@@ -67,6 +87,73 @@ def config(request: Request):
     }
 
 
+def _camera_session_active(request: Request, session_id: str):
+    principal = request.app.state.capture_access.authenticate(
+        request.headers.get("authorization"), session_id
+    )
+    session = request.app.state.store.get(principal, session_id)
+    if session.expires_at.timestamp() <= request.app.state.store.clock():
+        raise MuthError(410, "session_expired", "O prazo da captura terminou. Recomece.")
+    if session.status != "awaiting_capture":
+        raise MuthError(409, "camera_session_inactive", "A sessão já não aceita capturas ao vivo.")
+    if (
+        not session.consent.camera_frames_opt_in
+        or session.consent.camera_policy_version
+        != request.app.state.settings.live_camera_policy_version
+    ):
+        raise MuthError(403, "camera_consent_required", "Autorize a análise ao vivo desta sessão.")
+
+
+@router.post("/sessions/{session_id}/camera-assessment", response_model=CameraAssessment)
+async def camera_assessment(request: Request, session_id: str, target: CameraTarget):
+    settings = request.app.state.settings
+    preview_settings = settings.model_copy(
+        update={
+            "max_upload_bytes": settings.live_camera_max_frame_bytes,
+            "max_image_pixels": 2_000_000,
+        }
+    )
+    deadline = getattr(request.state, "camera_deadline", time.monotonic() + 10)
+    try:
+        async with asyncio.timeout(max(0, deadline - time.monotonic())):
+            async with request.form(
+                max_files=1, max_fields=0, max_part_size=settings.live_camera_max_frame_bytes
+            ) as form:
+                if list(form.keys()) != ["frame"] or len(form.multi_items()) != 1:
+                    raise MuthError(
+                        422, "camera_parts_invalid", "Envie apenas uma imagem de pré-visualização."
+                    )
+                if not isinstance(form["frame"], UploadFile):
+                    raise MuthError(422, "camera_parts_invalid", "A captura deve ser uma imagem.")
+                image = await read_image(
+                    form["frame"], preview_settings, capacity=request.app.state.capacity
+                )
+            if max(image.width, image.height) > settings.live_camera_max_frame_dimension:
+                raise MuthError(
+                    413, "camera_frame_too_large", "Reduza a resolução da pré-visualização."
+                )
+            await run_in_threadpool(_camera_session_active, request, session_id)
+
+            def analyze():
+                with request.app.state.capacity.worker():
+                    try:
+                        return assess_camera(image, target, runtime=request.app.state.runtime)
+                    except MuthError:
+                        raise
+                    except Exception as exc:
+                        raise MuthError(
+                            503, "camera_detector_failure", "A detecção ao vivo está indisponível."
+                        ) from exc
+
+            result = await run_in_threadpool(analyze)
+            await run_in_threadpool(_camera_session_active, request, session_id)
+            return result
+    except TimeoutError as exc:
+        raise MuthError(
+            408, "camera_assessment_timeout", "A detecção demorou demasiado. Repita."
+        ) from exc
+
+
 @router.post("/sessions", status_code=201)
 async def create(request: Request, payload: BrowserSessionRequest):
     settings = request.app.state.settings
@@ -78,6 +165,11 @@ async def create(request: Request, payload: BrowserSessionRequest):
             422, "capture_consent_required", "Confirme a política de privacidade actual."
         )
     principal = Principal(settings.capture_tenant_id, "browser-capture", frozenset({"verify"}))
+    if payload.consent.camera_frames_opt_in and (
+        not settings.live_camera_enabled
+        or payload.consent.camera_policy_version != settings.live_camera_policy_version
+    ):
+        raise MuthError(422, "camera_consent_required", "Confirme a política de captura ao vivo.")
     if payload.consent.identity_enrollment_opt_in and (
         not settings.identity_enrollment_enabled
         or request.app.state.runtime is None
@@ -103,6 +195,10 @@ async def create(request: Request, payload: BrowserSessionRequest):
                 accepted=True,
                 purpose=payload.consent.purpose,
                 policy_version=payload.consent.policy_version,
+                camera_frames_opt_in=payload.consent.camera_frames_opt_in,
+                camera_policy_version=payload.consent.camera_policy_version
+                if payload.consent.camera_frames_opt_in
+                else None,
             ),
             device_group=payload.device_group,
         ),
@@ -114,6 +210,7 @@ async def create(request: Request, payload: BrowserSessionRequest):
         "session_id": session.session_id,
         "capture_token": request.app.state.capture_access.issue(session),
         "expires_at": session.expires_at,
+        "camera_frames_enabled": session.consent.camera_frames_opt_in,
     }
 
 

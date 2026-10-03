@@ -116,7 +116,7 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
 
     app = FastAPI(
         title="MUTH API",
-        version="0.6.0",
+        version="0.7.0",
         lifespan=lifespan,
         description=(
             "Infraestrutura africana de identidade digital. Sessões B2B com consentimento, "
@@ -209,7 +209,7 @@ def create_app(settings: Settings | None = None, engines: EngineBundle | None = 
 
     @app.get("/health", tags=["Sistema"])
     def health() -> dict[str, str]:
-        return {"status": "ok", "service": "muth", "version": "0.6.0"}
+        return {"status": "ok", "service": "muth", "version": "0.7.0"}
 
     @app.get("/health/ready", tags=["Sistema"])
     def ready() -> JSONResponse:

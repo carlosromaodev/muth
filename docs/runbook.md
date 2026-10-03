@@ -7,12 +7,21 @@ gera configuração e chaves; o segundo aplica o schema. Se `.env` já existir,
 preservá-lo e configurar os novos campos — o bootstrap recusa sobrescrever.
 
 O servidor deve ser iniciado com `uvicorn muth.main:create_app --factory`.
-O modo `disabled` recusa verificação; `demo` executa o workflow sem biometria/OCR.
+O modo `disabled` recusa verificação; `demo` executa o workflow sem biometria.
+OCR local é independente do modo e exige Tesseract/idiomas instalados.
 Readiness 200 no modo demo indica somente que o workflow e schema estão disponíveis.
 Modo `biometric` exige o extra `biometrics`, pesos preparados e
 `MUTH_BIOMETRIC_MANIFEST`; ver [preparação no README](../README.md).
 Readiness indica `biometric_inference_ready`, mantendo identidade completa indisponível.
-`muth migrate` aplica também `0002_learning`; não iniciar um servidor com schema antigo.
+`muth migrate` aplica até `0005_identities`; não iniciar um servidor com schema antigo.
+`muth doctor` distingue preparação documental/OCR e runtime biométrico. Para
+activar pesos já preparados, usar `muth activate-biometrics` e reiniciar a app;
+o comando conserva outras definições e não promove calibração comercial.
+
+O guia de câmara v0.7 usa OpenCV/YuNet e transmite frames apenas após permissão
+explícita `capture-camera-v1`. Frames não são conservados ou usados no treino.
+Consultar [SDD ao vivo](live-camera-SDD.md) para quotas, capacidade, fallback e
+limites de captura. `MUTH_LIVE_CAMERA_ENABLED=false` desactiva esse guia.
 
 ## Chaves e scopes
 
@@ -23,6 +32,8 @@ outra chave com o mesmo tenant e novo key_id; depois remover a antiga e reinicia
 o processo. O rate limit local é por key_id, não uma quota comercial por empresa.
 
 Scopes: `verify`, `read`, `review`, `delete`, `audit`, `metrics`, `feedback`, `learning`.
+`capture_review` é independente e permite revisão da contribuição web/gestão
+administrativa de perfis; não é concedido pelo bootstrap ou pela chave legacy.
 `feedback` confirma labels; `learning` lê relatórios, executa calibração e rollback.
 Chaves de integração antigas devem receber esses scopes só quando necessário.
 Não atribuir scopes
@@ -83,9 +94,11 @@ do piloto. Multipart pode usar temporários: avaliar tmpfs e cifragem do disco.
 
 ## Docker e CI
 
-Dockerfile não-root e CI são configurações de referência. Não houve deploy nem
-build de container. O GitHub Actions recusou iniciar os jobs por bloqueio de
-facturação da conta; os testes locais estão registados em implementation-status.md.
+Dockerfile não-root e Compose/Caddy são usados nos ensaios locais com HTTPS,
+Tesseract e modelos CPU. Resultados por versão estão em
+[implementation-status.md](implementation-status.md); esses ensaios não constituem
+um deployment público. O GitHub Actions recusou iniciar os jobs por bloqueio de
+facturação da conta; os testes locais não são apresentados como aprovação da CI.
 O container recebe variáveis por configuração externa;
 a `.env` é excluída do build. Aplicar migrações em job separado antes de servir.
 O volume `/app/data` deve permitir escrita pelo UID 10001. Não copiar segredos para

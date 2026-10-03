@@ -56,7 +56,7 @@ class DocumentData(BaseModel):
     reasons: list[str] = Field(default_factory=list)
     ocr_provider: str = "tesseract"
     ocr_version: str | None = None
-    processing_version: str = "muth-document-ocr-v2"
+    processing_version: str = "muth-document-ocr-v3"
     mrz_checks: dict[str, bool] = Field(default_factory=dict)
     authenticity_confirmed: Literal[False] = False
 

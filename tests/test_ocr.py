@@ -11,12 +11,15 @@ from unittest.mock import patch
 from PIL import Image, ImageDraw, ImageFont
 from pydantic import ValidationError
 
+from muth.document_image import PreparedDocument
 from muth.document_models import DocumentConflict, DocumentData
 from muth.media import ImageInput
 from muth.ocr import (
     OCRLine,
     TesseractDocumentEngine,
+    _fuse_observed_lines,
     _merge_layout_readings,
+    _number_strip,
     _OCRFailure,
     _parse_side,
     _run_bounded,
@@ -61,6 +64,184 @@ def synthetic_document(*, back=False):
 
 
 class DocumentParserTests(unittest.TestCase):
+    def test_plain_ocr_text_without_tsv_coordinates_is_an_explicit_format_failure(self):
+        with self.assertRaisesRegex(_OCRFailure, "^ocr_output_format_invalid$"):
+            _tsv_lines("Nome: PESSOA SINTETICA\nSexo: F")
+
+    def test_third_ocr_pass_does_not_resurrect_a_conflicting_plausible_identity(self):
+        for key, first, second in (
+            ("name", "Nome: PESSOA SINTETICA", "Nome: OUTRA SINTETICA"),
+            ("document_number", "Numero do BI: 123456789LA123", "Numero do BI: 987654321LA123"),
+        ):
+            with self.subTest(key=key):
+                first_reading = _parse_side(
+                    [OCRLine("BILHETE DE IDENTIDADE"), OCRLine(first)], "front"
+                )
+                second_reading = _parse_side(
+                    [OCRLine("BILHETE DE IDENTIDADE"), OCRLine(second)], "front"
+                )
+                conflict = _merge_layout_readings(first_reading, second_reading)
+                repeated = _merge_layout_readings(conflict, first_reading)
+                self.assertNotIn(key, repeated.fields)
+                self.assertIn(f"document_{key}_conflict_layout", repeated.reasons)
+
+    def test_invalid_ocr_variants_can_be_recovered_by_a_complete_observed_number(self):
+        first = _parse_side(
+            [OCRLine("BILHETE DE IDENTIDADE"), OCRLine("Numero do BI: 123456789L123")], "front"
+        )
+        second = _parse_side(
+            [OCRLine("BILHETE DE IDENTIDADE"), OCRLine("Numero do BI: 12345678LA123")], "front"
+        )
+        merged = _merge_layout_readings(first, second)
+        result = _merge_layout_readings(
+            merged,
+            _parse_side(
+                [OCRLine("BILHETE DE IDENTIDADE"), OCRLine("Numero do BI: 123456789LA123")], "front"
+            ),
+        )
+        self.assertEqual(result.fields["document_number"].value, "123456789LA123")
+        self.assertNotIn("document_document_number_conflict_layout", result.reasons)
+
+    def test_complete_observed_multiline_name_extends_a_partial_name(self):
+        merged = _merge_layout_readings(
+            _parse_side([OCRLine("Nome: PESSOA SINTETICA")], "front"),
+            _parse_side([OCRLine("Nome: PESSOA SINTETICA DO NASCIMENTO")], "front"),
+        )
+        self.assertEqual(merged.fields["name"].value, "PESSOA SINTETICA DO NASCIMENTO")
+        self.assertIn("ocr_multiline_completed_name", merged.reasons)
+
+    def test_number_strip_is_anchored_below_an_observed_number_label(self):
+        strip = _number_strip(
+            [OCRLine("Bilhete de Identidade Nº:", 0.96, left=40, top=10, width=600, height=50)],
+            (800, 190),
+        )
+        self.assertIsNotNone(strip)
+        self.assertGreaterEqual(strip[1], 40)
+        self.assertEqual(strip[2], 800)
+        self.assertLessEqual(strip[3], 190)
+        self.assertIsNone(
+            _number_strip(
+                [OCRLine("Texto sem rótulo", 0.96, left=40, top=10, width=600, height=50)],
+                (800, 190),
+            )
+        )
+
+    def test_complementary_rows_keep_multiline_surname_connector(self):
+        first = [
+            OCRLine("Nome:", 0.95, left=40, top=40, width=100, height=25),
+            OCRLine("PESSOA SINTETICA", 0.95, left=40, top=75, width=350, height=25),
+            OCRLine("NASCIMENTO", 0.95, left=110, top=110, width=230, height=25),
+            OCRLine("Sexo: F", 0.95, left=40, top=150, width=150, height=25),
+        ]
+        complementary = [OCRLine("DO NASCIMENTO", 0.96, left=40, top=110, width=300, height=25)]
+        # TSV-backed rows have word confidences; a text-only benchmark still
+        # uses text length and confidence when row evidence is otherwise tied.
+        fused = _fuse_observed_lines(first + complementary)
+        document = parse_document_text(fused, "")
+        self.assertEqual(document.fields["name"].value, "PESSOA SINTETICA DO NASCIMENTO")
+
+    def test_multiline_name_with_nascimento_surname_does_not_create_birth_field(self):
+        document = parse_document_text(
+            "REPÚBLICA DE ANGOLA\nBILHETE DE IDENTIDADE\n"
+            "Nome Completo:\nPESSOA SINTETICA\nDO NASCIMENTO EXEMPLAR\n"
+            "Bilhete de Identidade Nº.\n123456789LA123",
+            "",
+        )
+        self.assertEqual(document.fields["name"].value, "PESSOA SINTETICA DO NASCIMENTO EXEMPLAR")
+        self.assertNotIn("birth_date", document.fields)
+        self.assertEqual(document.fields["document_number"].value, "123456789LA123")
+
+    def test_parentage_multiline_section_preserves_two_parent_blocks(self):
+        document = parse_document_text(
+            "REPÚBLICA DE ANGOLA\nBILHETE DE IDENTIDADE\n"
+            "Filiação:\nPRIMEIRO PROGENITOR\nSOBRENOME SINTETICO\ne\n"
+            "SEGUNDA PROGENITORA\nDO NASCIMENTO SINTETICO\n"
+            "Bilhete de Identidade Nº: 123456789LA123",
+            "",
+        )
+        self.assertEqual(
+            document.fields["father_name"].value, "PRIMEIRO PROGENITOR SOBRENOME SINTETICO"
+        )
+        self.assertEqual(
+            document.fields["mother_name"].value, "SEGUNDA PROGENITORA DO NASCIMENTO SINTETICO"
+        )
+        self.assertIn(" e ", document.fields["parentage"].value)
+        self.assertEqual(document.fields["father_name"].validation, "unvalidated")
+        self.assertNotIn("birth_date", document.fields)
+
+    def test_parent_roles_are_not_inferred_without_the_angolan_document_context(self):
+        document = parse_document_text("Filiação:\nPRIMEIRO SINTETICO\ne\nSEGUNDO SINTETICO", "")
+        self.assertIn("parentage", document.fields)
+        self.assertNotIn("father_name", document.fields)
+        self.assertNotIn("mother_name", document.fields)
+
+    def test_one_letter_ocr_name_is_rejected_despite_high_ocr_confidence(self):
+        document = parse_document_text([OCRLine("Nome: O", 0.99)], "")
+        self.assertNotIn("name", document.fields)
+
+    def test_date_token_is_cleaned_without_inventing_a_missing_component(self):
+        document = parse_document_text(
+            "Data de nascimento: 21/04/2000 rUIDO", "Válido até: 21/04/2030 Eb E"
+        )
+        self.assertEqual(document.fields["birth_date"].value, "2000-04-21")
+        self.assertEqual(document.fields["expiry_date"].value, "2030-04-21")
+        self.assertEqual(document.fields["expiry_date"].validation, "valid")
+        missing = parse_document_text("Data de nascimento: 21/04", "Válido até: Eb E")
+        self.assertNotIn("birth_date", missing.fields)
+        self.assertNotIn("expiry_date", missing.fields)
+
+    def test_two_dates_on_same_row_do_not_include_the_previous_field(self):
+        document = parse_document_text(
+            "Data de nascimento: 21/04/2000", "Emitido em: 21/04/2025 Válido até: 21/04/2030 Eb E"
+        )
+        self.assertEqual(document.fields["birth_date"].value, "2000-04-21")
+        self.assertEqual(document.fields["expiry_date"].value, "2030-04-21")
+
+    def test_multiple_dates_after_a_label_are_not_silently_selected(self):
+        document = parse_document_text("Validade: 21/04/2030 22/04/2030", "")
+        self.assertEqual(document.fields["expiry_date"].validation, "invalid")
+        self.assertEqual(document.status, "partial")
+
+    def test_geometric_parentage_gap_splits_parents_when_separator_is_not_read(self):
+        lines = [
+            OCRLine("REPUBLICA DE ANGOLA", 0.95, left=40, top=20, width=400, height=20),
+            OCRLine("BILHETE DE IDENTIDADE", 0.95, left=40, top=50, width=400, height=20),
+            OCRLine("Filiação:", 0.95, left=40, top=100, width=150, height=20),
+            OCRLine("PRIMEIRO PROGENITOR", 0.94, left=40, top=125, width=300, height=20),
+            OCRLine("SOBRENOME SINTETICO", 0.91, left=40, top=150, width=300, height=20),
+            OCRLine("SEGUNDA PROGENITORA", 0.93, left=40, top=195, width=300, height=20),
+            OCRLine("DO NASCIMENTO SINTETICO", 0.90, left=40, top=220, width=350, height=20),
+            OCRLine(
+                "Bilhete de Identidade Nº: 123456789LA123",
+                0.96,
+                left=40,
+                top=245,
+                width=450,
+                height=20,
+            ),
+        ]
+        document = parse_document_text(lines, "")
+        self.assertIn("father_name", document.fields)
+        self.assertIn("mother_name", document.fields)
+        self.assertEqual(document.fields["mother_name"].confidence, 0.90)
+
+    def test_sparse_blocks_use_coordinates_to_reassemble_label_and_value(self):
+        header = (
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tleft\ttop\twidth\theight\tconf\ttext\n"
+        )
+        lines = _tsv_lines(
+            header
+            + "5\t1\t1\t1\t1\t240\t50\t80\t20\t90\tFEMININO\n"
+            + "5\t1\t2\t1\t1\t40\t50\t60\t20\t95\tSexo:\n"
+            + "5\t1\t3\t1\t1\t40\t10\t60\t20\t95\tNome:\n"
+            + "5\t1\t3\t1\t1\t120\t10\t100\t20\t92\tSINTETICO\n"
+        )
+        document = parse_document_text(lines, "")
+        self.assertEqual(document.fields["sex"].value, "F")
+        self.assertEqual(document.fields["sex"].confidence, 0.90)
+        self.assertEqual(document.fields["name"].value, "SINTETICO")
+        self.assertEqual(lines[0].top, 10)
+
     def test_labelled_angolan_document_is_structured_without_authenticity(self):
         document = parse_document_text(
             """REPÚBLICA DE ANGOLA
@@ -218,7 +399,7 @@ Nacionalidade: Angolana""",
     def test_sparse_layout_can_recover_an_observed_valid_number_from_invalid_glyphs(self):
         reading = _merge_layout_readings(
             _parse_side(
-                [OCRLine("BILHETE DE IDENTIDADE"), OCRLine("Numero do BI: 123456789LA123 P")],
+                [OCRLine("BILHETE DE IDENTIDADE"), OCRLine("Numero do BI: 123456789L123")],
                 "front",
             ),
             _parse_side(
@@ -245,6 +426,53 @@ Nacionalidade: Angolana""",
 
 
 class LocalOCRExecutionTests(unittest.TestCase):
+    def test_expired_global_deadline_never_launches_another_ocr_process(self):
+        clock = [0.0]
+
+        def prepare(original):
+            clock[0] += 0.06
+            image = original.convert("RGB")
+            return PreparedDocument(image, False, "original", (), image.size)
+
+        engine = TesseractDocumentEngine(enabled=False, timeout_seconds=0.05)
+        engine.executable = sys.executable
+        engine.languages = "eng"
+        with (
+            patch("muth.ocr.time.monotonic", side_effect=lambda: clock[0]),
+            patch("muth.ocr.prepare_document_image", side_effect=prepare),
+            patch("muth.ocr._run_bounded") as run,
+        ):
+            result = engine.extract(synthetic_document(), synthetic_document(back=True))
+        run.assert_not_called()
+        self.assertEqual(result.fields, {})
+        self.assertIn("ocr_timeout", result.reasons)
+
+    def test_output_budget_is_shared_across_sides_and_all_retry_modes(self):
+        engine = TesseractDocumentEngine(enabled=False, max_output_bytes=4096)
+        engine.executable = sys.executable
+        engine.languages = "eng"
+        with patch("muth.ocr._run_bounded", return_value=b"x" * 4096) as run:
+            result = engine.extract(synthetic_document(), synthetic_document(back=True))
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(result.fields, {})
+        self.assertIn("ocr_output_limit_exceeded", result.reasons)
+
+    def test_transparent_documents_never_send_hidden_pixels_to_ocr(self):
+        image = Image.new("RGBA", (800, 500), (10, 20, 30, 0))
+        draw = ImageDraw.Draw(image)
+        draw.text((20, 20), "Nome: PESSOA SINTETICA", fill=(255, 255, 255, 0))
+        stream = BytesIO()
+        image.save(stream, "PNG")
+        source = ImageInput(stream.getvalue(), *image.size, "PNG")
+        engine = TesseractDocumentEngine(enabled=False)
+        engine.executable = sys.executable
+        engine.languages = "eng"
+        with patch("muth.ocr._run_bounded") as run:
+            result = engine.extract(source, source)
+        run.assert_not_called()
+        self.assertEqual(result.fields, {})
+        self.assertIn("document_transparency_unsupported", result.reasons)
+
     def test_disabled_and_missing_binary_are_honestly_unavailable(self):
         for arguments, reason in (
             ({"enabled": False}, "ocr_disabled"),
@@ -359,7 +587,7 @@ class LocalOCRExecutionTests(unittest.TestCase):
         self.assertEqual(result.fields["birth_date"].value, "2000-01-20")
         self.assertEqual(result.fields["expiry_date"].value, "2030-01-20")
         self.assertEqual(result.fields["sex"].value, "F")
-        self.assertEqual(result.processing_version, "muth-document-ocr-v2")
+        self.assertEqual(result.processing_version, "muth-document-ocr-v3")
         self.assertIn("ocr_sparse_layout_used", result.reasons)
         self.assertFalse(result.authenticity_confirmed)
 

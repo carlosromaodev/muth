@@ -1,5 +1,63 @@
 # Alterações
 
+## 0.7.0
+
+Câmara com orientação ao vivo e captura automática após três avaliações
+adequadas e estáveis. Frente e verso conservam a mesma câmara; o guia pede virar
+o cartão, exige uma mudança visual e depois abre a câmara frontal para a selfie.
+Caixa/cantos acompanham o documento ou rosto. Captura manual, ficheiros,
+recaptura e revisão explícita continuam disponíveis. Fechar a câmara, escolher
+ficheiro ou ocultar a página interrompe a transmissão e fecha as tracks.
+
+Novo endpoint `camera-assessment`, com consentimento próprio
+`capture-camera-v1`, frames de 1280 pixels/512 KiB, capacidade e quota dedicadas.
+Usa geometria OpenCV para o cartão e YuNet quando o runtime facial está activo;
+não executa OCR, embeddings ou PAD nas pré-visualizações. Frames e assinatura
+visual do cartão permanecem transitórios, sem armazenamento ou treino.
+
+Inclui a recuperação OCR descrita na v0.6.1 e o plano de 30 páginas por perfil
+em [product-pages-SDD.md](docs/product-pages-SDD.md). Os portais de empresa e
+administração desse plano ainda não estão implementados.
+
+**Compatibilidade:** schema permanece `0005_identities`; sessões antigas sem
+opt-in de frames continuam a usar captura manual/ficheiros. O detector orienta
+o enquadramento, sem certificar tipo, lado ou autenticidade do documento.
+Revisão e envio final são obrigatórios; auto-captura não aprova uma identidade.
+Segue [SDD da câmara](docs/live-camera-SDD.md).
+
+## 0.6.1
+
+Recuperação da extracção após falha numa captura real de BI angolano. Preparação
+geométrica do cartão antes do OCR, correcção de perspectiva quando as bordas são
+suficientes e fallback conservador para a cena completa. OCR TSV conserva
+coordenadas, lê nomes/filiação em várias linhas e delimita campos na mesma linha.
+Remove `NASCIMENTO` isolado como alias de data, suporta variantes do rótulo do
+número do BI, recusa nomes de uma letra e normaliza apenas datas completas
+observadas. `document_data.processing_version=muth-document-ocr-v3`.
+
+Captura web preserva mais resolução documental, mostra a fotografia inteira na
+revisão e orienta enquadramento/foco/iluminação. Dados incertos não preenchem o
+formulário de correcção como valores confirmados; modo demo continua explícito.
+Novo `muth doctor` para diagnóstico de dependências/configuração sem chaves e
+avaliador offline `scripts/evaluate_document.py` para anotações locais e métricas
+agregadas. Fotografias/anotações pessoais usadas nesta recuperação ficam fora
+do repositório e dos artefactos publicados.
+
+`muth activate-biometrics` valida os pesos locais e actualiza a configuração de
+forma atómica, preservando outras definições/chaves; reiniciar o servidor aplica
+a alteração. Transparência em imagens impede revelar pixels ocultos no recorte,
+OCR ou nota. Um conflito OCR continua excluído nas tentativas seguintes, em vez
+de ser recuperado silenciosamente por uma terceira leitura.
+
+**Compatibilidade:** schema permanece `0005_identities`; sem nova migração.
+NumPy/OpenCV passam a dependências de base para a preparação documental, mesmo
+em demo. Instalação deve actualizar as dependências. Tesseract `por+eng` continua
+necessário no host e incluído no Docker. O diagnóstico distingue OCR pronto de
+runtime biométrico; extrair campos não activa biometria nem confirma o documento.
+Nota mantém teto experimental 6/10; demo permanece sem nota. Registos/perfis
+existentes não são reextraídos nem alterados por esta mudança de versão.
+Segue [SDD de recuperação OCR](docs/ocr-recovery-SDD.md).
+
 ## 0.6.0
 
 Resultado web com campos documentais extraídos localmente por Tesseract,

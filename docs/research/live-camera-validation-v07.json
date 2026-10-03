@@ -1,0 +1,642 @@
+{
+  "version": "0.7.0",
+  "date": "2026-10-03",
+  "sdd_version": "1.6",
+  "scope": "software_and_single_document_regression_not_population_validation",
+  "software": {
+    "native_cpu_unittest": {
+      "executed": 363,
+      "passed": 363,
+      "skipped": 0,
+      "seconds": 37.73
+    },
+    "base_wheel_unittest": {
+      "executed": 363,
+      "passed": 356,
+      "skipped_optional_pad": 7,
+      "seconds": 28.937
+    },
+    "javascript_stability": {
+      "passed": 12,
+      "failed": 0
+    },
+    "ruff": {
+      "formatted_python_files": 96,
+      "errors": 0
+    },
+    "wheel_and_sdist_built": true
+  },
+  "ocr_geometry_regression": {
+    "scope": "private_single_document_regression",
+    "ocr_languages": "por+eng",
+    "ocr_version": "5.5.0",
+    "cases": [
+      {
+        "variant": "original",
+        "status": "extracted",
+        "expected_fields": 8,
+        "matched_fields": 8,
+        "field_matches": {
+          "name": true,
+          "document_number": true,
+          "birth_date": true,
+          "expiry_date": true,
+          "sex": true,
+          "father_name": true,
+          "mother_name": true,
+          "parentage": true
+        },
+        "unprinted_fields_not_inferred": {
+          "nationality": true
+        },
+        "extracted_field_count": 8,
+        "invalid_fields": [],
+        "conflict_count": 0,
+        "elapsed_seconds": 4.223,
+        "processing_version": "muth-document-ocr-v3",
+        "passed": true
+      },
+      {
+        "variant": "web-jpeg",
+        "status": "extracted",
+        "expected_fields": 8,
+        "matched_fields": 8,
+        "field_matches": {
+          "name": true,
+          "document_number": true,
+          "birth_date": true,
+          "expiry_date": true,
+          "sex": true,
+          "father_name": true,
+          "mother_name": true,
+          "parentage": true
+        },
+        "unprinted_fields_not_inferred": {
+          "nationality": true
+        },
+        "extracted_field_count": 8,
+        "invalid_fields": [],
+        "conflict_count": 0,
+        "elapsed_seconds": 4.14,
+        "processing_version": "muth-document-ocr-v3",
+        "passed": true
+      }
+    ],
+    "passed": true,
+    "population_accuracy_measured": false,
+    "document_authenticity_confirmed": false,
+    "personal_values_included": false
+  },
+  "https_container": {
+    "scope": "private_single_document_https_and_live_camera_regression",
+    "checks": [
+      "health",
+      "backend_v070",
+      "readiness",
+      "real_biometrics_ready",
+      "ocr_portuguese_english",
+      "no_identity_certification",
+      "public_config",
+      "preprocessing_ready",
+      "setup_complete",
+      "mutations_reject_cross_origin",
+      "live_document_detector_enabled",
+      "live_face_detector_enabled",
+      "legacy_session_create",
+      "legacy_camera_consent_denied",
+      "legacy_delete",
+      "stale_camera_policy_denied",
+      "session_create",
+      "session_token_required",
+      "session_camera_permission_granted",
+      "camera_token_required",
+      "camera_cross_origin_denied",
+      "camera_cross_session_denied",
+      "camera_invalid_target_denied",
+      "document_front_preview_within_limit",
+      "document_front_live_assessment",
+      "document_front_real_detector_ready",
+      "document_front_detected_and_ready",
+      "document_front_assessment_contract",
+      "document_front_does_not_authenticate",
+      "document_front_four_corners",
+      "document_front_transient_appearance",
+      "document_back_preview_within_limit",
+      "document_back_live_assessment",
+      "document_back_real_detector_ready",
+      "document_back_detected_and_ready",
+      "document_back_assessment_contract",
+      "document_back_does_not_authenticate",
+      "document_back_four_corners",
+      "document_back_transient_appearance",
+      "selfie_preview_within_limit",
+      "selfie_live_assessment",
+      "selfie_real_detector_ready",
+      "selfie_detected_and_ready",
+      "selfie_assessment_contract",
+      "selfie_does_not_authenticate",
+      "face_no_appearance_signature",
+      "real_document_sides_differ",
+      "frames_do_not_modify_database",
+      "verification",
+      "completed_session_camera_denied",
+      "eight_printed_fields_match",
+      "unprinted_nationality_not_inferred",
+      "ocr_v3",
+      "no_invalid_fields",
+      "no_conflicts",
+      "not_demo",
+      "indicative_score_ceiling",
+      "authenticity_not_claimed",
+      "no_learning_opt_in",
+      "no_identity_enrollment",
+      "idempotency_replay",
+      "same_result_on_replay",
+      "result_lookup",
+      "saved_result_matches",
+      "delete_session",
+      "deleted_result_unavailable"
+    ],
+    "personal_values_included": false,
+    "population_accuracy_measured": false,
+    "document_authenticity_confirmed": false,
+    "executed_at": "2026-10-03T07:21:24.108250+00:00",
+    "document_side_appearance_distance": 14,
+    "camera_frames_persisted": false,
+    "camera_targets_ready": {
+      "document_front": true,
+      "document_back": true,
+      "selfie": true
+    },
+    "field_matches": {
+      "name": true,
+      "document_number": true,
+      "birth_date": true,
+      "expiry_date": true,
+      "sex": true,
+      "father_name": true,
+      "mother_name": true,
+      "parentage": true
+    },
+    "matched_fields": 8,
+    "passed": true,
+    "container_image_sha256": "24f8643a48a38296e4d363e62157caf29696df518e2dccda1a73297216abb31b",
+    "runtime_versions": {
+      "muth": "0.7.0",
+      "opencv": "4.14.0.94",
+      "onnxruntime": "1.30.0",
+      "numpy": "2.5.3",
+      "tesseract": "5.5.0"
+    },
+    "https_certificate_verified": true,
+    "reverse_proxy_trust": "isolated_caddy_container_ip",
+    "native_inference_cpu_only": true,
+    "camera_preview_longest_side_maximum": 1280,
+    "camera_preview_jpeg_quality": 80,
+    "private_sessions_deleted": true,
+    "checks_count": 66
+  },
+  "native_browser": {
+    "version": "0.7.0",
+    "date": "2026-10-03",
+    "scope": "Chromium → same-origin API → Tesseract por+eng / native OpenCV YuNet and SFace / MiniFASNet ONNX → result",
+    "private_document_images": 2,
+    "reference_selfie_is_a_different_public_person": true,
+    "document_content_and_images_excluded": true,
+    "learning_and_enrollment_disabled": true,
+    "viewports": [
+      {
+        "ceilingHidden": false,
+        "ceilingIsSix": true,
+        "demoHeading": false,
+        "errorsHidden": true,
+        "fieldMatches": {
+          "birth_date": true,
+          "document_number": true,
+          "expiry_date": true,
+          "father_name": true,
+          "mother_name": true,
+          "name": true,
+          "parentage": true,
+          "sex": true
+        },
+        "identityNotRequested": true,
+        "learningUnavailable": true,
+        "matchedFields": 8,
+        "nationalityNotInferred": true,
+        "overflow": false,
+        "scoreBounded": true,
+        "scoreCeilingVisible": true,
+        "scoreUnavailable": false,
+        "storage": 0,
+        "viewport": {
+          "height": 844,
+          "width": 390
+        },
+        "review": {
+          "reviewVisible": true,
+          "images": 3,
+          "resultHidden": true
+        },
+        "console_errors_empty": true,
+        "passed": true
+      },
+      {
+        "ceilingHidden": false,
+        "ceilingIsSix": true,
+        "demoHeading": false,
+        "errorsHidden": true,
+        "fieldMatches": {
+          "birth_date": true,
+          "document_number": true,
+          "expiry_date": true,
+          "father_name": true,
+          "mother_name": true,
+          "name": true,
+          "parentage": true,
+          "sex": true
+        },
+        "identityNotRequested": true,
+        "learningUnavailable": true,
+        "matchedFields": 8,
+        "nationalityNotInferred": true,
+        "overflow": false,
+        "scoreBounded": true,
+        "scoreCeilingVisible": true,
+        "scoreUnavailable": false,
+        "storage": 0,
+        "viewport": {
+          "height": 812,
+          "width": 320
+        },
+        "review": {
+          "images": 3,
+          "resultHidden": true,
+          "reviewVisible": true
+        },
+        "console_errors_empty": true,
+        "passed": true
+      },
+      {
+        "ceilingHidden": false,
+        "ceilingIsSix": true,
+        "demoHeading": false,
+        "errorsHidden": true,
+        "fieldMatches": {
+          "birth_date": true,
+          "document_number": true,
+          "expiry_date": true,
+          "father_name": true,
+          "mother_name": true,
+          "name": true,
+          "parentage": true,
+          "sex": true
+        },
+        "identityNotRequested": true,
+        "learningUnavailable": true,
+        "matchedFields": 8,
+        "nationalityNotInferred": true,
+        "overflow": false,
+        "scoreBounded": true,
+        "scoreCeilingVisible": true,
+        "scoreUnavailable": false,
+        "storage": 0,
+        "viewport": {
+          "height": 1080,
+          "width": 1440
+        },
+        "review": {
+          "images": 3,
+          "resultHidden": true,
+          "reviewVisible": true
+        },
+        "console_errors_empty": true,
+        "passed": true
+      }
+    ],
+    "native_browser_camera_api": {
+      "checks": {
+        "configReal": true,
+        "enrollmentDisabled": true,
+        "invalidTargetRejected": true,
+        "learningDisabled": true,
+        "legacyDeleted": true,
+        "legacyNoFrameConsentRejected": true,
+        "liveConsentEnabled": true,
+        "sessionDeleted": true
+      },
+      "passed": true,
+      "results": [
+        {
+          "authenticityNotClaimed": true,
+          "cornerCount": 4,
+          "detected": true,
+          "detectorReady": true,
+          "http": 200,
+          "kind": "card",
+          "ready": true,
+          "reasons": [],
+          "target": "document_front",
+          "version": "camera-assessment-v1",
+          "signature_requirement_passed": true
+        },
+        {
+          "authenticityNotClaimed": true,
+          "cornerCount": 4,
+          "detected": true,
+          "detectorReady": true,
+          "http": 200,
+          "kind": "card",
+          "ready": true,
+          "reasons": [],
+          "target": "document_back",
+          "version": "camera-assessment-v1",
+          "signature_requirement_passed": true
+        },
+        {
+          "authenticityNotClaimed": true,
+          "cornerCount": 0,
+          "detected": true,
+          "detectorReady": true,
+          "http": 200,
+          "kind": "face",
+          "ready": true,
+          "reasons": [],
+          "target": "selfie",
+          "version": "camera-assessment-v1",
+          "signature_requirement_passed": true
+        }
+      ],
+      "storage": 0
+    },
+    "automatic_capture_native_backend": {
+      "back": {
+        "backNativeAssessments": 43,
+        "getUserMediaCalls": 1,
+        "noAutomaticVerification": true,
+        "rearActive": true,
+        "sameFrontBlocked": true,
+        "sameRearStream": true
+      },
+      "review": {
+        "allFramesNativeReady": true,
+        "allTracksStopped": true,
+        "cameraSwitches": [
+          "environment",
+          "user"
+        ],
+        "getUserMediaCalls": 2,
+        "images": 3,
+        "noAutomaticVerification": true,
+        "overflow": false,
+        "resultHidden": true,
+        "reviewVisible": true,
+        "storage": 0,
+        "targetsSeen": [
+          "document_front",
+          "document_back",
+          "selfie"
+        ]
+      },
+      "result": {
+        "ceilingHidden": false,
+        "ceilingIsSix": true,
+        "demoHeading": false,
+        "errorsHidden": true,
+        "fieldMatches": {
+          "birth_date": true,
+          "document_number": true,
+          "expiry_date": true,
+          "father_name": true,
+          "mother_name": true,
+          "name": true,
+          "parentage": true,
+          "sex": true
+        },
+        "identityNotRequested": true,
+        "learningUnavailable": true,
+        "matchedFields": 8,
+        "nationalityNotInferred": true,
+        "overflow": false,
+        "scoreBounded": true,
+        "scoreCeilingVisible": true,
+        "scoreUnavailable": false,
+        "storage": 0,
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "final": {
+        "allTracksStopped": true,
+        "cleanup": true,
+        "verificationRequests": 1
+      },
+      "hardware_camera_virtual": true,
+      "backend_vision_mocked": false,
+      "console_errors_empty": true,
+      "passed": true
+    },
+    "accessibility": {
+      "engine": "axe-core 4.11.0",
+      "violations": [],
+      "passes": 24,
+      "incomplete": [
+        {
+          "count": 9,
+          "id": "color-contrast"
+        }
+      ],
+      "manual_color_contrast_review_pending": true
+    },
+    "limits": [
+      "Single private document regression case is not an OCR population accuracy estimate.",
+      "Physical mobile cameras and iOS hardware camera selection were not tested.",
+      "Native face and PAD scores are indicative; document authenticity is not certified."
+    ],
+    "passed": true
+  },
+  "browser_state_machine_simulated_detector": {
+    "kind": "browser_camera_flow_simulated_detector",
+    "checked_assets": "src/muth/web capture.js camera-guide.js index.html capture.css",
+    "browser": "Chromium with getUserMedia fake device",
+    "passed_checks": 55,
+    "total_checks": 55,
+    "cases": {
+      "auto": {
+        "checks": {
+          "allTracksStoppedAtReview": true,
+          "backStable": true,
+          "cameraOnlyAfterConsent": true,
+          "cameraOnlyOpenedByGesture": true,
+          "frontStable": true,
+          "frontToBackStreamContinuous": true,
+          "frontTrackEnded": true,
+          "noErrors": true,
+          "noStorage": true,
+          "noVerificationBeforeExplicitConfirmation": true,
+          "reviewReached": true,
+          "sameFrontSideBlocked": true,
+          "selfieRequestedUser": true,
+          "selfieStable": true,
+          "sessionConsent": true,
+          "sessionPolicy": true,
+          "threeReviewImages": true
+        },
+        "counts": {
+          "back": 6,
+          "errors": 0,
+          "front": 3,
+          "selfie": 3,
+          "streams": 2
+        },
+        "events": [
+          {
+            "active": 0,
+            "requests": 0,
+            "stage": "consent"
+          },
+          {
+            "active": 0,
+            "requests": 0,
+            "stage": "Fotografe a frente do documento"
+          },
+          {
+            "active": 1,
+            "requests": 3,
+            "stage": "Agora, fotografe o verso"
+          },
+          {
+            "active": 0,
+            "requests": 9,
+            "stage": "É a sua vez. Tire uma selfie."
+          },
+          {
+            "active": 0,
+            "requests": 12,
+            "stage": "review"
+          }
+        ],
+        "simulated": true
+      },
+      "off": {
+        "checks": {
+          "assessmentsContinueWhenAutoOff": true,
+          "autoOffDoesNotCapture": true,
+          "closeDoesNotReopen": true,
+          "closeStopsAssessment": true,
+          "closeStopsTracks": true,
+          "noErrors": true,
+          "noStorage": true,
+          "noVerification": true,
+          "onEventuallyCaptures": true,
+          "onRequiresFreshStability": true
+        },
+        "counts": {
+          "assessments": 7,
+          "cameraRequests": 1,
+          "errors": 0
+        },
+        "simulated": true
+      },
+      "hidden": {
+        "checks": {
+          "actualTabHideSeen": true,
+          "allEnded": true,
+          "noAutoReopen": true,
+          "streamAbsent": true
+        },
+        "errors": 0,
+        "simulated": true
+      },
+      "picker": {
+        "checks": {
+          "allEnded": true,
+          "cameraDoesNotReopen": true,
+          "noErrors": true,
+          "noStorage": true,
+          "pickerStopsBeforeNativeClick": true,
+          "streamAbsent": true
+        },
+        "simulated": true
+      },
+      "refresh": {
+        "checks": {
+          "consentScreen": true,
+          "consentUnchecked": true,
+          "noCameraReopened": true,
+          "noErrors": true,
+          "noStorage": true
+        },
+        "simulated": true
+      },
+      "submit": {
+        "checks": {
+          "resultVisible": true,
+          "verifiedOnlyAfterClick": true
+        },
+        "simulated": true
+      },
+      "mobile_390": {
+        "simulated": true,
+        "width": 390,
+        "checks": {
+          "controlsVisible": true,
+          "liveVisible": true,
+          "overlayVisible": true,
+          "statusVisible": true,
+          "noOverflow": true,
+          "noErrors": true
+        }
+      },
+      "mobile_320": {
+        "simulated": true,
+        "width": 320,
+        "checks": {
+          "controlsVisible": true,
+          "liveVisible": true,
+          "statusVisible": true,
+          "noOverflow": true,
+          "noErrors": true
+        }
+      }
+    },
+    "accessibility": {
+      "desktop": {
+        "incomplete": [
+          {
+            "count": 12,
+            "id": "color-contrast"
+          }
+        ],
+        "passed": 21,
+        "simulated": true,
+        "violations": []
+      },
+      "mobile": {
+        "incomplete": [
+          {
+            "count": 8,
+            "id": "color-contrast"
+          }
+        ],
+        "passed": 22,
+        "simulated": true,
+        "violations": []
+      }
+    },
+    "limitations": [
+      "Camera hardware uses Chromium fake device; not a physical phone camera test.",
+      "Detection endpoint outputs were explicitly simulated to test UI transitions; these checks do not measure face or document detection accuracy.",
+      "Axe reported no violations but complex background contrast remains incomplete.",
+      "No user identity photos, OCR values, stored credentials, or biometric templates were used."
+    ]
+  },
+  "physical_camera_evaluation_executed": false,
+  "document_authenticity_confirmed": false,
+  "population_accuracy_measured": false,
+  "personal_values_or_images_included": false,
+  "orientation_gate": "failed_v061_rotated_cases_not_resolved_by_live_guide",
+  "accessibility_manual_contrast_review_pending": true,
+  "ci_last_known_block": "GitHub account billing: runner job did not start"
+}

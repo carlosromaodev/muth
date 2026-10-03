@@ -1,6 +1,6 @@
-# Portal de captura — MUTH v0.6
+# Portal de captura — MUTH v0.7
 
-SDD 1.4 · 2 de Outubro de 2026. Complementa os SDD da
+SDD 1.6 · 3 de Outubro de 2026. Complementa os SDD da
 [plataforma](SDD.md), [biometria](biometrics-SDD.md) e
 [OCR/aprendizagem/identidade guardada](web-learning-SDD.md).
 
@@ -14,21 +14,33 @@ num gesto explícito. Documentos preferem a câmara traseira, selfie a frontal;
 ficheiros JPEG/PNG e captura nativa do dispositivo servem de alternativa.
 Não existe login ou chave B2B no navegador.
 
+O [guia ao vivo](live-camera-SDD.md) acrescenta enquadramento documental/facial,
+estabilidade e autocaptura. Fotogramas temporários seguem para MUTH depois de
+consentimento e gesto de câmara; não ficam à espera da submissão final. A
+permissão versionada `capture-camera-v1` é guardada cifrada na sessão, por opt-in
+estrito e separado dos propósitos opcionais de aprendizagem e identidade.
+Frente/verso mantêm a mesma stream traseira; depois abre uma nova stream frontal
+para selfie. Manual/upload e revisão explícita continuam disponíveis.
+
 Layouts: sidebar e área de trabalho em desktop; progressão compacta e acções
 adaptadas ao telemóvel. Há estados de permissão negada, indisponibilidade,
 captura/recaptura, revisão incompleta, processamento, erro retryable, expiração e
 resultado. Foco, teclado, live regions, contraste e redução de movimento integram
 o fluxo. Não há timers que finjam a conclusão da verificação.
 
-O browser normaliza orientação e exporta JPEG até 1600 pixels/.86, limita tamanho
-individual e soma antes do envio. O backend volta a validar bytes, dimensões e
+O browser normaliza orientação e exporta documentos em JPEG até 2400 pixels/0,94,
+reduzindo a qualidade apenas quando necessário para respeitar o limite de bytes.
+Selfies mantêm 1600 pixels/0,86. A pré-visualização documental mostra o frame
+inteiro; instruções de enquadramento/qualidade ficam visíveis no telemóvel.
+Limita tamanho individual e soma antes do envio. O backend volta a validar bytes, dimensões e
 formato. Nenhuma imagem ou token entra em localStorage/sessionStorage. Tracks são
 paradas após foto, troca de etapa, navegação, invisibilidade e reinício.
 
 | Operação | Acesso e resultado |
 | --- | --- |
-| `GET /capture-api/config` | Público; modo, disponibilidade, política e limites |
+| `GET /capture-api/config` | Público; modo, readiness OCR/idiomas/geometria/biometria, política e limites |
 | `POST /capture-api/sessions` | Consentimento estrito JSON; devolve ID/token/expiração |
+| `POST /capture-api/sessions/{id}/camera-assessment?target=...` | Bearer + autorização de frames vigente; um frame transitório, guia de enquadramento/qualidade sem OCR/PAD/embedding |
 | `POST /capture-api/sessions/{id}/verify` | Bearer + Idempotency-Key; exactamente document_front/document_back/selfie |
 | `GET /capture-api/sessions/{id}` | Bearer da mesma sessão; resultado concluído |
 | `DELETE /capture-api/sessions/{id}` | Bearer da mesma sessão; elimina payloads/resultados |
@@ -73,6 +85,12 @@ retenção deste. Reiniciar a interface conserva contribuições/perfis consenti
 retirada e eliminação explícitas estão disponíveis no resultado.
 
 ## Nota 0–10 e evidência disponível
+
+O portal avisa desde o consentimento quando o servidor está em demo. Nesse modo,
+os motores biométricos estão desactivados; o resultado apresenta a leitura
+documental disponível, sem nota nem aviso de teto numérico. Valores OCR inválidos
+são identificados para confirmação e não preenchem propostas de correcção como
+se estivessem validados. Confiança de leitura não significa exactidão do campo.
 
 O resultado apresenta **Nota dos sinais de autenticidade**, de natureza
 **indicativa**, sempre `authenticity_confirmed=false`. Não representa uma
@@ -170,7 +188,7 @@ docker compose up --build -d api gateway
 
 Num ambiente com proxy TLS, o Dockerfile aceita opcionalmente o secret BuildKit
 `proxy_ca`; passar o bundle de CA apropriado com `docker build --secret
-id=proxy_ca,src=/caminho/ca-bundle.pem -t muth:0.6 .`. O certificado só é montado
+id=proxy_ca,src=/caminho/ca-bundle.pem -t muth:0.7 .`. O certificado só é montado
 durante a instalação de dependências, com verificação TLS activa.
 
 A API não publica porta no host; o gateway termina TLS. O manifesto research não

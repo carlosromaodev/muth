@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_serializer, model_validator
 
 
 class Outcome(StrEnum):
@@ -66,8 +66,20 @@ class Consent(BaseModel):
     model_config = {"extra": "forbid"}
     accepted: bool = Field(strict=True)
     learning_opt_in: bool = Field(default=False, strict=True)
+    camera_frames_opt_in: bool = Field(default=False, strict=True)
+    camera_policy_version: str | None = Field(default=None, min_length=1, max_length=80)
     purpose: Literal["onboarding", "account_recovery", "step_up"]
     policy_version: str = Field(min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_.-]+$")
+
+    @model_serializer(mode="wrap")
+    def serialize_consent(self, handler):
+        result = handler(self)
+        # Legacy sessions have no permission to stream frames. Preserve their
+        # established response shape while validation restores safe defaults.
+        if not self.camera_frames_opt_in and self.camera_policy_version is None:
+            result.pop("camera_frames_opt_in", None)
+            result.pop("camera_policy_version", None)
+        return result
 
     @field_validator("accepted")
     @classmethod

@@ -120,7 +120,7 @@ def is_inference_request(path, method):
     if len(parts) == 5 and parts[:3] == ["", "identity-api", "identities"]:
         return bool(parts[3]) and parts[4] == "compare"
     if len(parts) == 5 and parts[:3] == ["", "capture-api", "sessions"]:
-        return bool(parts[3]) and parts[4] == "verify"
+        return bool(parts[3]) and parts[4] in {"verify", "camera-assessment"}
     return (
         len(parts) == 5
         and parts[:3] == ["", "v1", "sessions"]
@@ -183,6 +183,13 @@ class PlatformMiddleware:
             if path == "/identity-api" or path.startswith("/identity-api/"):
                 await authorize_identity(request)
             inference = is_inference_request(path, scope["method"])
+            camera = (
+                inference
+                and path.startswith("/capture-api/")
+                and path.rstrip("/").endswith("/camera-assessment")
+            )
+            if camera:
+                scope["state"]["camera_deadline"] = time.monotonic() + 10.0
             if inference:
                 admitted = self.capacity.acquire_request()
                 if not admitted:
@@ -190,7 +197,9 @@ class PlatformMiddleware:
                         429, "inference_capacity_exceeded", "Capacidade de inferência ocupada."
                     )
             limit = (
-                self.settings.capture_max_request_bytes
+                self.settings.live_camera_max_frame_bytes + 8192
+                if camera
+                else self.settings.capture_max_request_bytes
                 if inference and path.startswith("/capture-api/")
                 else self.settings.max_request_bytes
                 if inference
@@ -218,7 +227,11 @@ class PlatformMiddleware:
                 if declared > limit:
                     raise MuthError(413, "request_too_large", "Corpo do pedido excede o limite.")
             body = bytearray()
-            deadline = time.monotonic() + self.settings.request_body_timeout_seconds
+            deadline = time.monotonic() + (
+                min(10.0, self.settings.request_body_timeout_seconds)
+                if camera
+                else self.settings.request_body_timeout_seconds
+            )
             while True:
                 try:
                     remaining = deadline - time.monotonic()
@@ -249,6 +262,18 @@ class PlatformMiddleware:
                 if session.expires_at.timestamp() <= request.app.state.store.clock():
                     raise MuthError(
                         410, "session_expired", "O prazo da captura terminou. Recomece."
+                    )
+                if camera and session.status != "awaiting_capture":
+                    raise MuthError(
+                        409, "camera_session_inactive", "A sessão já não aceita capturas ao vivo."
+                    )
+                if camera and (
+                    not session.consent.camera_frames_opt_in
+                    or session.consent.camera_policy_version
+                    != self.settings.live_camera_policy_version
+                ):
+                    raise MuthError(
+                        403, "camera_consent_required", "Autorize a análise ao vivo desta sessão."
                     )
             if inference and path.startswith("/identity-api/"):
                 principal = request.app.state.identity_access.authenticate(

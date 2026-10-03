@@ -1,8 +1,15 @@
 # MUTH
 
 Infraestrutura africana de identidade digital, com foco inicial no BI angolano.
-Versão v0.6 em Python 3.12/FastAPI, seguindo o [SDD](docs/SDD.md), o
-[SDD biométrico](docs/biometrics-SDD.md) e o [SDD de aprendizagem web](docs/web-learning-SDD.md).
+Versão v0.7 em Python 3.12/FastAPI, seguindo o [SDD](docs/SDD.md), o
+[SDD biométrico](docs/biometrics-SDD.md), o [SDD de aprendizagem web](docs/web-learning-SDD.md)
+e a [recuperação da extracção documental](docs/ocr-recovery-SDD.md).
+A [captura ao vivo](docs/live-camera-SDD.md) acrescenta enquadramento,
+autocaptura e passagem contínua entre frente e verso.
+O [mapa de páginas e perfis](docs/product-pages-SDD.md) propõe 30 páginas:
+seis do utilizador, 14 da empresa, sete da administração MUTH e três de acesso.
+Os portais de empresa/administração são fases planeadas; a interface actual é
+o fluxo de captura e resultado.
 
 **Face e Liveness executam modelos reais em CPU.** YuNet/SFace e MiniFASNet ONNX
 estão integrados; thresholds não calibrados devolvem inconclusivo. Tesseract local
@@ -36,7 +43,23 @@ insuficiente devolve dados indisponíveis/parciais; campos não são inventados.
 Abrir <http://127.0.0.1:8000> para consentimento, frente/verso do documento,
 selfie, revisão e resultado. Câmara e fotografias são escolhidas pelo utilizador;
 nenhuma chave B2B vai para o browser. O mesmo servidor fornece interface e API.
-Aplicar `muth migrate` até `0005_identities` antes de iniciar a v0.6.
+Aplicar `muth migrate` até `0005_identities` antes de iniciar a v0.7.
+
+Ao abrir a câmara, fotogramas temporários seguem para o servidor MUTH para
+detectar o cartão/rosto e orientar enquadramento e qualidade. A autorização
+`capture-camera-v1` fica cifrada na sessão; sessões antigas ou só com ficheiros
+não autorizam esses pedidos. Três avaliações estáveis durante pelo menos 1,4
+segundos permitem a fotografia automática. Frente e verso mantêm a mesma
+câmara traseira; o verso exige uma mudança visual antes da autocaptura. Depois,
+o fluxo pede a câmara frontal para a selfie e apresenta revisão antes do envio
+final. Detecção facial exige o runtime YuNet configurado; captura manual e
+upload continuam disponíveis. Este guia não confirma o lado oficial, a
+autenticidade do documento ou presença viva.
+
+`MUTH_LIVE_CAMERA_ENABLED=false` desactiva a análise ao vivo. O intervalo por
+defeito é 700 ms (`MUTH_LIVE_CAMERA_INTERVAL_MS`), com um pedido em voo e frames
+limitados a 512 KiB/1280px/2MP. O endpoint não executa OCR, embedding ou PAD,
+não conserva frames e não os usa na aprendizagem.
 
 A nota 0–10 mede sinais disponíveis, com **teto actual de 6/10** e autenticidade
 por confirmar. Demo/falta de evidência mostra nota indisponível. Não confirma
@@ -44,9 +67,15 @@ oficialmente documentos nem garante uma pessoa real. O resultado mostra nome,
 número documental, datas, sexo, nacionalidade e filiação quando legíveis, com
 origem/confiança por campo e conflitos entre frente/verso. OCR e dígitos MRZ
 consistentes não comprovam emissão oficial nem autenticidade.
-`document_data.processing_version` identifica `muth-document-ocr-v2`: OCR começa
-em PSM 6 e tenta PSM 11 quando faltam campos essenciais ou há leitura inválida,
-conservando conflitos em vez de escolher silenciosamente valores plausíveis.
+`document_data.processing_version` identifica `muth-document-ocr-v3`. O serviço
+isola o cartão e corrige a perspectiva quando a geometria é suficientemente
+segura; conserva a imagem inteira quando não é. A qualidade e a comparação
+documento/selfie usam a região documental, sem aumentar artificialmente a sua
+resolução. OCR conserva coordenadas e delimita campos, incluindo nomes/filiação
+em várias linhas e datas na mesma linha. Tentativas adaptativas partilham um
+deadline e conservam conflitos entre leituras plausíveis. Nacionalidade não é
+inferida do país emissor. A web exporta documentos até 2400 pixels em JPEG 0,94;
+a selfie mantém 1600 pixels em JPEG 0,86.
 
 No telemóvel, a câmara JavaScript precisa de HTTPS; localhost funciona no próprio
 dispositivo. [Portal, segurança e configuração HTTPS](docs/capture-SDD.md).
@@ -89,14 +118,21 @@ Preparação explícita dos pesos públicos e exportação CPU:
 UV_CACHE_DIR=/tmp/muth-uv-cache uv sync --locked --extra biometrics --group export
 .venv/bin/python scripts/fetch_biometrics.py
 .venv/bin/python scripts/export_liveness.py
+.venv/bin/muth activate-biometrics --env-file .env --manifest models/biometrics/manifest.json
+.venv/bin/muth doctor
 ```
 
-No `.env`, definir `MUTH_ENGINE_MODE=biometric` e
-`MUTH_BIOMETRIC_MANIFEST=models/biometrics/manifest.json`, mantendo as chaves locais.
-Aplicar `.venv/bin/muth migrate` antes de iniciar a app factory. Numa instalação
+`activate-biometrics` verifica hashes, dependências e contratos reais dos modelos
+antes de alterar atomicamente apenas o modo e o caminho do manifesto no `.env`.
+Conserva as chaves locais e não descarrega pesos nem declara calibração comercial.
+`doctor` mostra o estado de instalação, OCR/idiomas e preparação documental,
+sem imprimir credenciais. Aplicar `.venv/bin/muth migrate` antes de iniciar a app factory. Numa instalação
 nova, `muth init` começa em demo até activar explicitamente o bundle. Credenciais,
 dados de verificação, ambientes virtuais e pesos não são distribuídos pelo GitHub;
 a configuração e os modelos devem ser preparados na máquina de destino.
+Reiniciar o servidor após a activação. Expor uma cópia via ngrok não altera o
+modo de execução: o portal identifica `demo` desde o início e nesse modo não
+apresenta uma nota biométrica.
 
 O manifesto declara uso research e verifica SHA-256 antes de carregar os modelos.
 Fontes e licenças ficam em `models/biometrics/sources.json` e `vendor/`; não existem
@@ -226,6 +262,21 @@ Este último permite consultar/eliminar o perfil e enviar apenas `selfie` a
 `POST /identity-api/identities/{id}/compare`; não autoriza revisão nem outros perfis.
 
 ## Validar
+
+Para repetir uma extracção com fotografias e anotações **privadas**, sem publicar
+imagens nem valores pessoais:
+
+```bash
+.venv/bin/python scripts/evaluate_document.py \
+  /caminho/privado/frente.jpg /caminho/privado/verso.jpg \
+  --expected /caminho/privado/expected.json \
+  --output /caminho/privado/aggregate.json
+```
+
+O ficheiro de referência contém `fields` (campos e valores observados) e `absent`
+(campos que não estão impressos). A ferramenta devolve apenas correspondências,
+contagens e tempos; uma falha recebe código de saída não zero. Este teste local
+não inscreve identidades nem usa imagens no treino.
 
 ```bash
 .venv/bin/python -m unittest discover -s tests -v

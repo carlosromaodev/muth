@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from muth.benchmark import benchmark_biometrics, load_biometric_dataset
 from muth.config import SCOPES, Settings, TenantKey
 from muth.evaluation import evaluate_face, validate_manifest
+from muth.setup import BiometricSetupError
 from muth.storage import Database, SessionStore
 
 
@@ -48,6 +49,12 @@ def main(argv=None) -> int:
     init.add_argument("--tenant", default="local")
     commands.add_parser("migrate", help="Aplicar migrações da DB configurada")
     commands.add_parser("purge", help="Limpar payloads que excederam a retenção")
+    commands.add_parser("doctor", help="Verificar OCR, modelos e configuração sem mostrar chaves")
+    activate = commands.add_parser(
+        "activate-biometrics", help="Validar pesos locais e activar biometria na configuração"
+    )
+    activate.add_argument("--env-file", type=Path, default=Path(".env"))
+    activate.add_argument("--manifest", type=Path, default=Path("models/biometrics/manifest.json"))
     manifest = commands.add_parser("validate-model", help="Validar manifesto local e checksums")
     manifest.add_argument("manifest", type=Path)
     manifest.add_argument("--require-commercial", action="store_true")
@@ -74,6 +81,21 @@ def main(argv=None) -> int:
     try:
         if args.command == "init":
             bootstrap(args.env_file, args.tenant)
+        elif args.command == "activate-biometrics":
+            from muth.setup import activate_biometrics
+
+            activate_biometrics(args.env_file, args.manifest)
+            print(
+                "Motores biométricos activados. Reinicia o servidor para carregar a configuração. "
+                "A activação não valida a autenticidade documental nem promove calibração "
+                "ou licença comercial."
+            )
+        elif args.command == "doctor":
+            from muth.diagnostics import inspect_setup
+
+            result = inspect_setup(Settings())
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+            return 0 if result["status"] == "ready_for_research" else 1
         elif args.command == "validate-model":
             print(
                 json.dumps(
@@ -125,6 +147,8 @@ def main(argv=None) -> int:
             finally:
                 database.engine.dispose()
         return 0
+    except BiometricSetupError as exc:
+        print(str(exc), file=sys.stderr)
     except FileExistsError:
         print("O ficheiro já existe; nenhuma configuração foi substituída.", file=sys.stderr)
     except ValidationError:

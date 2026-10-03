@@ -439,12 +439,14 @@ wheels = [
 
 [[package]]
 name = "muth"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
     { name = "cryptography" },
     { name = "fastapi" },
+    { name = "numpy" },
+    { name = "opencv-python-headless" },
     { name = "pillow" },
     { name = "prometheus-client" },
     { name = "pydantic-settings" },
@@ -455,9 +457,7 @@ dependencies = [
 
 [package.optional-dependencies]
 biometrics = [
-    { name = "numpy" },
     { name = "onnxruntime" },
-    { name = "opencv-python-headless" },
 ]
 
 [package.dev-dependencies]
@@ -476,9 +476,9 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.14,<2" },
     { name = "cryptography", specifier = ">=44,<49" },
     { name = "fastapi", specifier = ">=0.115,<1" },
-    { name = "numpy", marker = "extra == 'biometrics'", specifier = ">=2.0,<3" },
+    { name = "numpy", specifier = ">=2.0,<3" },
     { name = "onnxruntime", marker = "extra == 'biometrics'", specifier = ">=1.20,<2" },
-    { name = "opencv-python-headless", marker = "extra == 'biometrics'", specifier = ">=4.10,<5" },
+    { name = "opencv-python-headless", specifier = ">=4.10,<5" },
     { name = "pillow", specifier = ">=11.1,<13" },
     { name = "prometheus-client", specifier = ">=0.21,<1" },
     { name = "pydantic-settings", specifier = ">=2.7,<3" },

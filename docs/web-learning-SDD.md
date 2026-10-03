@@ -1,7 +1,9 @@
 # OCR, identidade guardada e aprendizagem web — MUTH v0.6
 
-SDD 1.4 · 2 de Outubro de 2026. Complementa [captura](capture-SDD.md) e
-[biometria](biometrics-SDD.md). Migração corrente: `0005_identities`.
+SDD 1.4 · 2 de Outubro de 2026; extracção revista na v0.6.1 pelo
+[SDD de recuperação OCR 1.5](ocr-recovery-SDD.md). Complementa
+[captura](capture-SDD.md) e [biometria](biometrics-SDD.md).
+Migração corrente: `0005_identities`.
 
 ## Objectivo e resultado
 
@@ -19,7 +21,7 @@ O resultado `document_data` distingue extracted/partial/unavailable e inclui
 campos suportados, origem OCR/MRZ, lado, confiança textual, validação estrutural,
 conflitos e motivos. Nome, número, nascimento, validade, sexo, nacionalidade e
 filiação são opcionais. Confiança OCR não é probabilidade de identidade.
-`document_data.processing_version` é `muth-document-ocr-v2`, distinto da versão
+`document_data.processing_version` é `muth-document-ocr-v3`, distinto da versão
 do executável Tesseract, e permite rastrear mudanças no processamento/extracção.
 
 Tesseract recebe argumentos sem shell, tem deadline de 12 segundos por defeito,
@@ -28,12 +30,29 @@ saída limitada e directório temporário privado eliminado no fim. Instalação
 os mesmos pacotes. O default é `por+eng`; se só existir inglês, o fallback declara
 `ocr_language_fallback_eng`. Não há download de idiomas no pedido nem OCR remoto.
 
-O processamento começa em PSM 6 e tenta PSM 11 para layout esparso quando a
-primeira leitura tem campos inválidos, menos de três campos ou, na frente,
-faltam nome/número/nascimento/validade/sexo. O fallback é adaptativo, não executado
-em toda a imagem. Frente, verso e tentativas partilham o deadline/orçamento de
-saída. Uma leitura validada pode recuperar um campo inválido; duas leituras
-plausíveis diferentes produzem conflito e não promovem um valor silenciosamente.
+Antes do OCR, `PreparedDocument` procura bordas compatíveis com o cartão e
+corrige perspectiva quando a geometria é suficientemente apoiada. A detecção
+usa resolução reduzida, mas a vista corrigida conserva a resolução disponível
+da fotografia. Geometria incerta conserva a cena completa com motivo explícito;
+não se assume um recorte central. A web normaliza documentos até uma aresta de
+2400 pixels, com JPEG 0,94, e mostra a fotografia inteira na revisão. Selfies
+mantêm processamento e orçamento próprios.
+
+Tesseract devolve TSV com coordenadas/confiança das palavras. O parser reúne
+linhas físicas e delimita campos independentes na mesma linha; junta nomes e
+filiação em várias linhas apenas quando o layout observado o sustenta. Um
+apelido isolado não vira rótulo de nascimento, um nome de uma letra é recusado e
+datas exigem token completo com calendário válido. Regiões auxiliares, quando
+necessárias, derivam da geometria/rótulos observados e não de valores pessoais
+esperados. Nacionalidade ausente não é preenchida a partir do país emissor.
+
+PSM 6/11 são tentativas adaptativas de layout. Frente, verso, orientações e
+recortes auxiliares partilham o deadline/orçamento de saída; cada alternativa
+não ganha um novo prazo. Uma leitura validada pode recuperar um campo inválido;
+duas leituras plausíveis diferentes produzem conflito e não promovem um valor
+silenciosamente. O [SDD de recuperação](ocr-recovery-SDD.md) define negativos,
+avaliação privada e gates de robustez; o teste sintético v0.6 não é evidência de
+precisão em BI reais.
 
 ## Consentimentos independentes
 

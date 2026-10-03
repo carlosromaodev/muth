@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "muth"
-version = "0.6.0"
+version = "0.7.0"
 description = "Infraestrutura africana de identidade digital — base de desenvolvimento"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -18,15 +18,15 @@ dependencies = [
   "alembic>=1.14,<2",
   "cryptography>=44,<49",
   "prometheus-client>=0.21,<1",
+  "numpy>=2.0,<3",
+  "opencv-python-headless>=4.10,<5",
 ]
 
 [project.scripts]
 muth = "muth.cli:main"
 
 [project.optional-dependencies]
-biometrics = [
-  "numpy>=2.0,<3", "opencv-python-headless>=4.10,<5", "onnxruntime>=1.20,<2",
-]
+biometrics = ["onnxruntime>=1.20,<2"]
 
 [dependency-groups]
 dev = ["httpx>=0.28,<1", "ruff>=0.11,<1"]

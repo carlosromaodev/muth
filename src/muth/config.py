@@ -52,6 +52,14 @@ class Settings(BaseSettings):
     max_control_request_bytes: int = Field(default=64 * 1024, ge=1024, le=1024 * 1024)
     request_body_timeout_seconds: float = Field(default=120, ge=0.01, le=600)
     capture_portal_enabled: bool = True
+    live_camera_enabled: bool = True
+    live_camera_policy_version: str = Field(
+        default="capture-camera-v1", pattern=r"^[a-zA-Z0-9_.-]{1,80}$"
+    )
+    live_camera_interval_ms: int = Field(default=700, ge=500, le=5000)
+    live_camera_rate_limit_per_minute: int = Field(default=120, ge=1, le=120)
+    live_camera_max_frame_bytes: int = Field(default=512 * 1024, ge=1024, le=512 * 1024)
+    live_camera_max_frame_dimension: int = Field(default=1280, ge=320, le=1280)
     capture_tenant_id: str = Field(default="capture-portal", pattern=r"^[a-zA-Z0-9_-]{1,80}$")
     capture_policy_version: str = Field(
         default="capture-privacy-v1", pattern=r"^[a-zA-Z0-9_.-]{1,80}$"

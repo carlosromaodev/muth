@@ -1,6 +1,6 @@
 # MUTH — System Design Document
 
-Versão 1.4 · 2 de Outubro de 2026 · Plataforma/biometria, OCR e aprendizagem web v0.6.
+Versão 1.6 · 3 de Outubro de 2026 · Plataforma/biometria, OCR e captura ao vivo v0.7.
 
 O desenho biométrico vigente está em [biometrics-SDD.md](biometrics-SDD.md).
 As extensões substituem as referências históricas abaixo a motores ainda demo:
@@ -14,7 +14,13 @@ O [SDD de captura](capture-SDD.md) acrescenta interface mobile/web, frente/verso
 selfie, capabilities do browser e uma nota preliminar explicitamente limitada.
 O [SDD de aprendizagem web](web-learning-SDD.md) define OCR, consentimentos
 independentes, fila de revisão, templates cifrados e reutilização provisória.
-É normativo para os contratos v0.6; o diagnóstico e plano P0 abaixo conservam o
+O [SDD de recuperação documental](ocr-recovery-SDD.md) acrescenta isolamento do
+cartão, perspectiva, OCR por coordenadas e avaliação privada de fotografias reais.
+O [SDD de câmara ao vivo](live-camera-SDD.md) define detecção, estabilidade,
+fotogramas transitórios autorizados e captura automática com revisão final.
+O [mapa de páginas e perfis](product-pages-SDD.md) organiza 30 páginas propostas
+e a ordem de implementação dos portais de utilizador, empresa e administração.
+É normativo para os contratos v0.7; o diagnóstico e plano P0 abaixo conservam o
 histórico da fundação, sem declarar os gates comerciais cumpridos.
 
 ## 1. Objectivo e limites

@@ -1,8 +1,128 @@
 # Resultado da execução do SDD
 
-2 de Outubro de 2026 · MUTH v0.6.0 · SDD 1.4.
+3 de Outubro de 2026 · MUTH v0.7 · SDD 1.6.
 
-## Estado actual — OCR, aprendizagem web e identidade guardada v0.6
+## Estado actual — câmara ao vivo v0.7
+
+O [SDD ao vivo](live-camera-SDD.md) está implementado: avaliações transitórias
+OpenCV/YuNet, consentimento versionado, caixas/cantos, captura automática após
+estabilidade, frente/verso na mesma stream e nova câmara frontal para a selfie.
+Revisão e envio explícito permanecem obrigatórios. Ocultar/fechar a câmara ou
+escolher fotografia interrompe a análise e fecha as tracks. Frames não entram em
+OCR, embeddings, armazenamento de imagens ou aprendizagem.
+
+O [plano de páginas](product-pages-SDD.md) define 30 páginas por perfil:
+seis do utilizador, 14 da empresa, sete da administração e três de acesso.
+É arquitectura planeada; os portais de empresa/administração não foram criados
+nesta entrega. A interface implementada é captura, revisão e resultado.
+
+Verificação v0.7 executada, separada dos resultados anteriores:
+
+- Suite completa com motores CPU: **363 testes passaram**, em 37,730 segundos.
+  Wheel de base: 363 executados em 28,937 segundos, **356 passaram e sete casos
+  PAD opcionais ignorados**. Ruff: 96 ficheiros formatados e zero erros.
+- Máquina de estabilidade JavaScript: **12 verificações passaram**, incluindo
+  movimento, resposta inválida, mudança visual e prevenção de repetição.
+- Detector nativo nos frames das duas fotografias privadas: frente e verso
+  detectados, quatro cantos e qualidade adequada. YuNet detectou um rosto de
+  referência público; a avaliação não chamou o gerador de embedding.
+- Regressão OCR após acrescentar coordenadas ao detector: **8/8 campos** tanto
+  nos originais como no JPEG web, com nacionalidade ausente preservada.
+- Docker final com TLS local verificado: **66 verificações HTTPS passaram**,
+  incluindo OCR 8/8, modelos nativos e digest idêntico de todas as tabelas antes
+  e depois dos três frames. Consentimento, origem, capabilities, ciclo de vida,
+  idempotência e eliminação verificados.
+- Chromium com backend real: OCR **8/8** em 390/320/1440 pixels. Fluxo automático
+  inteiro passou usando uma câmara de canvas: detecção OpenCV/YuNet real,
+  frente/verso na mesma stream, repetição da frente bloqueada, nova stream
+  frontal, revisão e apenas um envio depois da confirmação. Zero erros, storage
+  e overflow. Axe: zero violações, 24 regras passadas; nove nós de contraste
+  continuam a exigir avaliação manual.
+- Câmara virtual/avaliações simuladas: **55 verificações de navegador passaram**
+  para estabilidade, controls, pause, fechar, escolher ficheiro e ocultar a aba.
+  Esta simulação é separada da integração nativa; não mede precisão dos motores.
+
+O [registo agregado v0.7](research/live-camera-validation-v07.json) conserva a
+evidência e os limites, sem fotografias, anotações ou valores pessoais.
+
+Estes ensaios verificam software e recuperação de um caso, sem demonstrar
+precisão numa população, funcionamento num telemóvel físico ou autenticação de
+documentos. O guia não resolve o gate de orientação OCR registado abaixo.
+Autenticidade continua por confirmar e os opt-ins de aprendizagem/identidade
+mantêm revisão e limites anteriores.
+
+## Recuperação da extracção documental v0.6.1 — ensaio de 2 de Outubro
+
+O utilizador apresentou uma falha real: nome truncado a uma letra, campos
+essenciais em falta e lixo junto de uma data. A cena incluía o BI e texto de um
+computador. A leitura anterior de oito campos numa credencial sintética e os
+258 testes v0.6 verificaram software/integração; não demonstraram precisão em
+documentos angolanos reais. A falha exige corrigir o pipeline, não aumentar a
+confiança ou preencher campos conhecidos manualmente.
+
+Esta recuperação segue [ocr-recovery-SDD.md](ocr-recovery-SDD.md). Acrescenta
+`PreparedDocument` para detecção geométrica do cartão e perspectiva quando
+seguro, mantendo a cena em situações incertas. OCR TSV conserva coordenadas,
+delimita campos na mesma linha e junta nomes/filiação em várias linhas. O parser
+deixa de interpretar `NASCIMENTO` isolado como data, trata variantes do rótulo
+do número do BI, recusa nomes de uma letra e valida datas completas observadas.
+`document_data.processing_version=muth-document-ocr-v3` rastreia a alteração.
+NumPy/OpenCV entram no pacote de base; OCR local deixa de depender do extra de
+biometria para preparar o documento. Schema mantém `0005_identities`.
+
+A web preserva mais resolução para documentos, mostra a fotografia inteira na
+revisão e dá indicações de qualidade/enquadramento. Valores inválidos/incertos
+não são tratados como dados confirmados no formulário. `muth doctor` verifica
+modo/dependências sem revelar credenciais. `scripts/evaluate_document.py`
+permite comparar extracção com anotações locais e emitir métricas agregadas.
+`muth activate-biometrics` valida pesos e actualiza a configuração local de forma
+atómica; a alteração exige reiniciar o servidor. Isto não promove calibração,
+licença comercial ou autenticidade. Transparência impede extrair pixels ocultos;
+conflitos de extracção permanecem excluídos em tentativas posteriores.
+
+As fotografias do utilizador foram autorizadas para testes de extracção locais.
+Não são fixtures públicas nem dados de treino/inscrição automática; imagens,
+texto OCR, anotações e valores pessoais ficam fora do Git, logs e distribuição.
+O ensaio privado compara oito campos efectivamente impressos e conserva
+nacionalidade ausente quando a fonte não a mostra. É um teste de recuperação
+do caso, sem denominador para precisão populacional.
+
+Validação executada nesta recuperação:
+
+- Tesseract 5.5, `por+eng`: **8/8 campos exactos** nas fotografias originais e
+  **8/8** após JPEG do fluxo web. Nacionalidade ausente não foi inferida.
+- Suite completa com motores CPU: **316 testes passaram**, em 59,896 segundos;
+  inclui **45 testes OCR**. Wheel de base: 316 testes executados em 31,396
+  segundos, com **309 passaram e sete casos PAD opcionais ignorados**.
+- Chromium completou o envio das duas fotografias privadas ao backend e
+  apresentou **8/8 campos**. Larguras 390/320/1440 sem overflow, storage e erros
+  de consola zero. Axe: zero violações, 24 verificações passadas e oito
+  incompletas, incluindo contraste; não substitui avaliação manual/câmara física.
+- Docker final, Tesseract 5.3 e motores reais: **29 verificações HTTPS passaram**,
+  incluindo extracção **8/8** nas fotografias originais. Não mede desempenho de
+  captura numa população ou autenticação documental.
+- **Gate G3 de orientação falhou:** rotações artificiais de 90°/180°/270°
+  recuperaram respectivamente **4/8, 5/8 e 3/8** campos. A recuperação do caso
+  original/JPEG está demonstrada; robustez geral de orientação continua aberta.
+  Algumas leituras incompletas podem satisfazer o estado estrutural `extracted`,
+  que não é garantia de exactidão de todos os campos.
+
+O [registo agregado](research/document-ocr-recovery-v061.json) conserva as
+comparações e limites sem fotografias, anotações ou valores pessoais. Os
+resultados v0.6 permanecem apenas no histórico; não são usados para declarar
+sucesso desta recuperação. Não houve novo piloto físico de câmara mobile nem
+validação para produção.
+
+O modo `demo` mostrado na captura é uma causa separada da ausência de nota:
+esse servidor não estava a executar os motores biométricos. Corrigir OCR não
+activa o bundle. OCR continua independente da biometria; nota com sinais reais
+mantém teto experimental 6/10, autenticidade permanece por confirmar e perfis
+continuam provisórios. Não há validação de produção, autenticação documental,
+treino autónomo de pesos ou promessa de melhoria por cada captura.
+
+## Histórico v0.6
+
+### OCR, aprendizagem web e identidade guardada v0.6
 
 O resultado apresenta dados documentais extraídos por Tesseract local e nota
 indicativa. OCR de frente/verso conserva apenas campos estruturados com
